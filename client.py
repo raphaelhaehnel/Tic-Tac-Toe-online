@@ -29,10 +29,10 @@ if msg == "new server":
 
         # Get the response from the server
         msg = client_socket.recv(1024).decode(FORMAT)
-        print(f"Response: {msg}")
+        print(f"Server response: {msg}")
 
         if msg == "Name already exists":
-            print("Name already exists")
+            pass
         else:
             print("Name available")
             break
@@ -43,12 +43,14 @@ elif msg == "join server":
     # Get the number of games
     n_games = client_socket.recv(1024).decode(FORMAT)
     print(f"{int(n_games)} servers available")
+    client_socket.send("next".encode(FORMAT))
 
     for i in range(int(n_games)):
         msg = client_socket.recv(1024).decode(FORMAT)
+        client_socket.send("next".encode(FORMAT))
         print(f"Server {i}: {msg}")
 
-    print("Enter the name of the server you want to join:")
+    print("Enter the index of the server you want to join:")
 
     msg = input()
     client_socket.send(msg.encode(FORMAT))

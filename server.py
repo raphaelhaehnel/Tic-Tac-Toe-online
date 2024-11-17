@@ -11,7 +11,6 @@ ADDR = (HOST, PORT)
 games_list = list()
 games_list.append(GameServer("Game1"))
 
-
 def check_if_name_exists(name: str, games_list: list[GameServer]):
     """
     For each GameList object in the list of games, checks if the given name is already taken.
@@ -25,55 +24,84 @@ def check_if_name_exists(name: str, games_list: list[GameServer]):
     return False
 
 
-# Initialize socket object
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def handle_client(connection: socket.socket, address: tuple[str, int]):
+    """
+    Handles a single client connection.
+    :param connection:
+    :param address:
+    :return:
+    """
+    print(f"New connection at {address}")
 
-# Bind the socket to address
-server_socket.bind(ADDR)
+    # Get 'new server', 'join' or 'quit'
+    msg = connection.recv(1024).decode(FORMAT)
+    print(f"[{address}] The user chose {msg}")
 
-# Listen to new clients
-server_socket.listen()
+    # If the client sent "new server"
+    if msg == "new server":
 
-print("Waiting for a client to connect...")
+        while True:
+            # Get the name of the server, or 'back'
+            msg = connection.recv(1024).decode(FORMAT)
+            print(f"[{address}] Server name: {msg}")
 
-# Get the next client that is trying to connect
-connection, address = server_socket.accept()
+            # If the client sent "back", do nothing
+            if msg == "back":
+                break
+            else:
 
-print(f"New connection at {address}")
+                # If the client sent the message name, check if the name already exists
+                is_already_exist = check_if_name_exists(msg, games_list)
 
-# Get 'new server', 'join' or 'quit'
-msg = connection.recv(1024).decode(FORMAT)
-print(f"The user chose {msg}")
+                if is_already_exist:
+                    connection.send("Name already exists".encode(FORMAT))
+                else:
+                    connection.send("Name available".encode(FORMAT))
+                    games_list.append(GameServer(msg))
+                    break
 
-# If the client sent "new server"
-if msg == "new server":
+    # Else if the client sent "join server"
+    elif msg == "join server":
+
+        # Send the number of games
+        connection.send(str(len(games_list)).encode(FORMAT))
+
+        # Waiting to receive 'next' from the client to ensure he's got our message
+        msg = connection.recv(1024).decode(FORMAT)
+
+        for game in games_list:
+            # Send the games names
+            connection.send(game.name.encode(FORMAT))
+
+            # Waiting to receive 'next' from the client to ensure he's got our message
+            msg = connection.recv(1024).decode(FORMAT)
+
+        # Get the name of the server to join
+        msg = connection.recv(1024).decode(FORMAT)
+
+        # Get the server corresponding to the index server 'msg'
+        games_list[int(msg)].add_player(address)
+        print(f"[{address}] Server name: {games_list[int(msg)].name}")
+
+
+if __name__ == '__main__':
+
+    # Initialize socket object
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Bind the socket to address
+    server_socket.bind(ADDR)
+
+    # Listen to new clients
+    server_socket.listen()
 
     while True:
-        # Get the name of the server, or 'back'
-        msg = connection.recv(1024).decode(FORMAT)
-        print(f"Server name: {msg}")
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}\n")  # printing the amount of threads working
 
-        # If the client sent "back", do nothing
-        if msg == "back":
-            break
-        else:
+        print("Waiting for a client to connect...")
+        connection, address = server_socket.accept()  # Waiting for client to connect to server (blocking call)
 
-            # If the client sent the message name, check if the name already exists
-            is_already_exist = check_if_name_exists(msg, games_list)
+        thread = threading.Thread(target=handle_client, args=(connection, address))
+        thread.start()
 
-            if is_already_exist:
-                connection.send("Name already exists".encode(FORMAT))
-            else:
-                connection.send("Name available".encode(FORMAT))
-                games_list.append(GameServer(msg))
-                break
 
-# Else if the client sent "join server"
-elif msg == "join server":
-
-    # Send the number of games
-    connection.send(str(len(games_list)).encode(FORMAT))
-
-    for game in games_list:
-        # Send the games names
-        connection.send(game.name.encode(FORMAT))
