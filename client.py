@@ -1,5 +1,7 @@
 import socket
 import threading
+from client_api import ClientAPI
+import json
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 5000  # The port used by the server
@@ -10,50 +12,17 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 client_socket.connect(ADDR)
 
-print("Choose 'new server' or 'join server' or 'quit':")
-msg = input()
-client_socket.send(msg.encode(FORMAT))
+print("REQUESTS:")
+print(ClientAPI.requests_list)
 
-if msg == "new server":
-
-    while True:
-        print("Enter the name of the server:")
-
-        msg = input()
-
-        if msg == "back":
-            client_socket.send(msg.encode(FORMAT))
-            break
-
-        client_socket.send(msg.encode(FORMAT))
-
-        # Get the response from the server
-        msg = client_socket.recv(1024).decode(FORMAT)
-        print(f"Server response: {msg}")
-
-        if msg == "Name already exists":
-            pass
-        else:
-            print("Name available")
-            break
-
-
-elif msg == "join server":
-
-    # Get the number of games
-    n_games = client_socket.recv(1024).decode(FORMAT)
-    print(f"{int(n_games)} servers available")
-    client_socket.send("next".encode(FORMAT))
-
-    for i in range(int(n_games)):
-        msg = client_socket.recv(1024).decode(FORMAT)
-        client_socket.send("next".encode(FORMAT))
-        print(f"Server {i}: {msg}")
-
-    print("Enter the index of the server you want to join:")
-
+while True:
     msg = input()
     client_socket.send(msg.encode(FORMAT))
 
+    if msg == ClientAPI.QUIT:
+        break
+
+    msg = client_socket.recv(1024).decode(FORMAT)
+    print(msg)
 
 client_socket.close()

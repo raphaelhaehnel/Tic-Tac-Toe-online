@@ -1,6 +1,9 @@
 import socket
 import threading
-from game_server import GameServer
+from game_server import GameServer, get_game_object
+from player import Player
+from client_api import ClientAPI
+import json
 
 # Define constants
 HOST = '127.0.0.1'
@@ -11,18 +14,29 @@ ADDR = (HOST, PORT)
 games_list = list()
 games_list.append(GameServer("Game1"))
 
-def check_if_name_exists(name: str, games_list: list[GameServer]):
-    """
-    For each GameList object in the list of games, checks if the given name is already taken.
-    :param name:
-    :param games_list:
-    :return:
-    """
-    for game in games_list:
-        if game.name == name:
-            return True
-    return False
+import random
 
+# List of animal names
+animal_names = [
+    "Lion", "Tiger", "Elephant", "Zebra", "Giraffe", "Kangaroo",
+    "Panda", "Koala", "Wolf", "Fox", "Bear", "Cheetah", "Leopard",
+    "Penguin", "Seal", "Dolphin", "Whale", "Shark", "Eagle", "Falcon"
+]
+
+# Set to track picked names
+picked_names = set()
+
+
+def get_random_animal():
+    global picked_names
+    if len(picked_names) >= len(animal_names):
+        raise ValueError("All animal names have already been picked!")
+
+    # Get a random name that hasn't been picked yet
+    remaining_names = set(animal_names) - picked_names
+    chosen_name = random.choice(list(remaining_names))
+    picked_names.add(chosen_name)
+    return chosen_name
 
 def handle_client(connection: socket.socket, address: tuple[str, int]):
     """
@@ -33,56 +47,125 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
     """
     print(f"New connection at {address}")
 
-    # Get 'new server', 'join' or 'quit'
-    msg = connection.recv(1024).decode(FORMAT)
-    print(f"[{address}] The user chose {msg}")
+    # Set up the new player
+    player = Player(address, get_random_animal())
 
-    # If the client sent "new server"
-    if msg == "new server":
+    while True:
 
-        while True:
-            # Get the name of the server, or 'back'
+        try:
+            # Get a request from the client
             msg = connection.recv(1024).decode(FORMAT)
-            print(f"[{address}] Server name: {msg}")
+        except:
+            break
 
-            # If the client sent "back", do nothing
-            if msg == "back":
-                break
-            else:
+        # Split the string according to the separator '/'
+        msg = msg.split('/')
 
-                # If the client sent the message name, check if the name already exists
-                is_already_exist = check_if_name_exists(msg, games_list)
+        if msg[0] == ClientAPI.NEW_SERVER:
+            process_new_server(address, connection, server_name=msg[1], player=player)
 
-                if is_already_exist:
-                    connection.send("Name already exists".encode(FORMAT))
-                else:
-                    connection.send("Name available".encode(FORMAT))
-                    games_list.append(GameServer(msg))
-                    break
+        elif msg[0] == ClientAPI.GET_SERVERS_LIST:
+            process_get_server_list(connection)
 
-    # Else if the client sent "join server"
-    elif msg == "join server":
+        elif msg[0] == ClientAPI.GET_SERVER:
+            process_get_server(connection, server_name=msg[1])
 
-        # Send the number of games
-        connection.send(str(len(games_list)).encode(FORMAT))
+        elif msg[0] == ClientAPI.JOIN_SERVER:
+            process_join_server(address, connection, msg, player)
 
-        # Waiting to receive 'next' from the client to ensure he's got our message
-        msg = connection.recv(1024).decode(FORMAT)
+        elif msg[0] == ClientAPI.START_GAME:
+            process_start(address, connection, msg)
 
-        for game in games_list:
-            # Send the games names
-            connection.send(game.name.encode(FORMAT))
+        elif msg[0] == ClientAPI.EXIT_SERVER:
+            process_exit_server(address, connection, player)
+        else:
+            # If the player is inside a game, exclude him from it
+            if player.game is not None:
+                get_game_object(games_list, player.game).remove_player(player)
+            break
 
-            # Waiting to receive 'next' from the client to ensure he's got our message
-            msg = connection.recv(1024).decode(FORMAT)
 
-        # Get the name of the server to join
-        msg = connection.recv(1024).decode(FORMAT)
+def process_start(address, connection, msg):
+    current_server = get_game_object(games_list, msg[1])
+    if len(current_server.players) <= 1:
+        response = {"status": "error", "message": "You need more people in your server"}
+        response_json = json.dumps(response, indent=4)
+        connection.send(response_json.encode(FORMAT))
+    else:
+        current_server.start()
+        print(f"{address} started server: {current_server.name}")
 
-        # Get the server corresponding to the index server 'msg'
-        games_list[int(msg)].add_player(address)
-        print(f"[{address}] Server name: {games_list[int(msg)].name}")
+        response = {"status": "valid", "message": f"You started the server {current_server.name}"}
+        response_json = json.dumps(response, indent=4)
+        connection.send(response_json.encode(FORMAT))
 
+def process_exit_server(address: tuple[str, int], connection: socket.socket, player: Player):
+    current_server = get_game_object(games_list, player.game)
+    current_server.remove_player(player)
+
+    response = {"status": "valid", "message": f"You quit the server {current_server.name}"}
+    response_json = json.dumps(response, indent=4)
+    connection.send(response_json.encode(FORMAT))
+
+def process_join_server(address, connection, msg, player):
+    # Get the server corresponding to the index server 'msg'
+    current_server = get_game_object(games_list, msg[1])
+    current_server.add_player(player)
+    print(f"{address} joined server: {current_server.name}")
+    server_data = {"name": current_server.name, "players": [player.name for player in current_server.players]}
+
+    # Convert the list to JSON
+    servers_json = json.dumps(server_data, indent=4)
+
+    connection.send(servers_json.encode(FORMAT))
+
+
+def process_get_server_list(connection):
+    # Create a list of dictionaries with the names and players
+    games_data = [{"name": game.name, "players": [player.name for player in game.players]} for game in games_list]
+
+    # Convert the list to JSON
+    servers_json = json.dumps(games_data, indent=4)
+
+    # Sends the list of servers as JSON
+    connection.send(servers_json.encode(FORMAT))
+
+def process_get_server(connection, server_name):
+
+    # Get the server corresponding to the index server 'msg'
+    current_server = get_game_object(games_list, server_name)
+
+    # Create a list of dictionaries with the names and players
+    game_data = {"name": current_server.name,
+                 "players": [player.name for player in current_server.players],
+                 "has_started": current_server.has_started}
+
+    # Convert the list to JSON
+    server_json = json.dumps(game_data, indent=4)
+
+    # Sends the list of servers as JSON
+    connection.send(server_json.encode(FORMAT))
+
+def process_new_server(address, connection, server_name, player):
+    # Check if the name of the new server is available
+    if get_game_object(games_list, server_name) is not None:
+        connection.send("Name already exists".encode(FORMAT))
+
+    # Check if the name has special characters
+    elif not server_name.isalnum():
+        connection.send("Please use only alpha characters".encode(FORMAT))
+
+    # If the name is correct
+    else:
+        print(f"{address} created server {server_name}")
+
+        new_server = GameServer(server_name)
+        new_server.add_player(player)
+        games_list.append(new_server)
+
+        server_data = {"name": new_server.name, "players": [player.name for player in new_server.players]}
+        servers_json = json.dumps(server_data, indent=4)
+        connection.send(servers_json.encode(FORMAT))
 
 if __name__ == '__main__':
 
@@ -103,5 +186,7 @@ if __name__ == '__main__':
 
         thread = threading.Thread(target=handle_client, args=(connection, address))
         thread.start()
+
+
 
 
