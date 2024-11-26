@@ -13,10 +13,11 @@ FORMAT = 'utf-8'
 ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
 class TicTacToeApp:
-    def __init__(self, root):
+    def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Tic Tac Toe")
         self.root.geometry("400x400")
+        self.root.iconbitmap("tic-tac-toe.ico")
         self.style = ttk.Style()
 
         try:
@@ -354,7 +355,10 @@ class TicTacToeApp:
             response = json.loads(msg)
 
             if response['has_started']:
-                #TODO start the server
+                server_name = response['name']
+                players = response['players']
+                board_state = response['board']
+                self.setup_game_page(server_name, players, board_state)
                 break
             users = response['players']
 
@@ -365,6 +369,130 @@ class TicTacToeApp:
             print("Updated users list !")
             time.sleep(0.5)
 
+    def setup_game_page(self, server_name, players, board_state):
+        self.clear_frame()
+
+        # Outer frame for margins
+        outer_frame = tk.Frame(self.root, bg="#2e2e2e")
+        outer_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+
+        # Configure root weights for responsiveness
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
+
+        # Inner frame for main content
+        game_frame = tk.Frame(outer_frame, bg="#2e2e2e")
+        game_frame.grid(row=0, column=0, sticky="nsew")
+
+        # Configure grid weights for responsiveness
+        outer_frame.rowconfigure(0, weight=1)
+        outer_frame.columnconfigure(0, weight=1)
+
+        game_frame.rowconfigure(0, weight=1)  # Title row
+        game_frame.rowconfigure(1, weight=4)  # Game board
+        game_frame.rowconfigure(2, weight=1)  # Players list
+        game_frame.rowconfigure(3, weight=1)  # Quit button row
+        game_frame.columnconfigure(0, weight=1)
+
+        # Title Label
+        ttk.Label(
+            game_frame,
+            text=f"Game: {server_name}",
+            font=("Arial", 16),
+            anchor="center",
+        ).grid(row=0, column=0, pady=10, sticky="n")
+
+        # Game Board ((n+1)^2 Grid)
+        board_frame = tk.Frame(game_frame, bg="#2e2e2e")
+        board_frame.grid(row=1, column=0, pady=(10, 20), padx=10, sticky="nsew")
+
+        n_players = len(players)
+        btn_list = [[None for i in range(n_players+1)] for j in range(n_players+1)]
+
+        for i in range(n_players+1):
+            board_frame.rowconfigure(i, weight=1)
+            board_frame.columnconfigure(i, weight=1)
+            for j in range(n_players+1):
+                button_text = board_state[i][j] if board_state[i][j] != "" else " "
+                btn = ttk.Button(
+                    board_frame,
+                    text=button_text,
+                    command=lambda x=i, y=j: self.make_move(x, y),
+                    padding=5,
+                )
+                btn.grid(row=i, column=j, sticky="nsew", padx=5, pady=5)
+                btn_list[i][j] = btn # Add the button to the list of buttons
+
+                # Players List with Symbols
+        players_frame = tk.Frame(game_frame, bg="#2e2e2e")
+        players_frame.grid(row=2, column=0, pady=(10, 20), padx=10, sticky="nsew")
+
+        for player, symbol in zip(players, range(1, len(players)+1)):
+            ttk.Label(
+                players_frame,
+                text=f"{player}: {symbol}",
+                font=("Arial", 12),
+                anchor="w",
+            ).pack(anchor="w", pady=5)
+
+        # Quit Game Button
+        def on_quit_game():
+            self.client_socket.send(ClientAPI.QUIT.encode(FORMAT))
+            self.setup_main_page()
+
+        ttk.Button(
+            game_frame,
+            text="Quit Game",
+            command=on_quit_game,
+        ).grid(row=3, column=0, pady=(10, 20), padx=10, sticky="ew")
+
+        thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
+        thread.start()
+
+        self.threads.append(thread)
+        # TODO delete the thread from the list when it finishes
+
+
+    def automatic_update_game(self, btn_list: list[list[tk.Button]]):
+
+        # Loop forever while the first button (at least) is existing
+        while btn_list[0][0].winfo_exists():
+
+            try:
+                self.client_socket.send((ClientAPI.GET_SERVER + '/' + self.current_server).encode(FORMAT))
+                msg = self.client_socket.recv(1024).decode(FORMAT)
+            except OSError:
+                break
+
+            response = json.loads(msg)
+            updated_board = response['board']
+            players = response['players']
+
+            # Update the game page with new board and players
+            for i in range(len(players)+1):
+                for j in range(len(players)+1):
+                    btn_list[i][j].config(text=updated_board[i][j])
+
+            print("Board updated")
+            time.sleep(0.5)
+
+    def make_move(self, x, y):
+        # Send the move to the server
+        move_message = f"{ClientAPI.MAKE_MOVE}/{self.current_server}/{x}/{y}"
+        self.client_socket.send(move_message.encode(FORMAT))
+
+        # Receive the updated board state and player turn
+        response = self.client_socket.recv(1024).decode(FORMAT)
+        response_data = json.loads(response)
+
+        if response_data['status'] == "success":
+            updated_board = response_data['board']
+            players = response_data['players']
+
+            # Update the game page with new board and players
+            self.setup_game_page(self.current_server, players, updated_board)
+        else:
+            print('failed to make move')  # Log error or invalid move
 
     def clear_frame(self):
         for widget in self.root.winfo_children():

@@ -11,4 +11,11 @@ class Player:
     def quit_server(self):
         self.game = None
 
+    def to_dict(self):
+        return {
+            "address": self.address,
+            "name": self.name,
+            "game": self.game
+        }
+
 

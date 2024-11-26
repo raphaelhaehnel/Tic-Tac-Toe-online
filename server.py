@@ -1,5 +1,6 @@
 import socket
 import threading
+
 from game_server import GameServer, get_game_object
 from player import Player
 from client_api import ClientAPI
@@ -71,7 +72,10 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_get_server(connection, server_name=msg[1])
 
         elif msg[0] == ClientAPI.JOIN_SERVER:
-            process_join_server(address, connection, msg, player)
+            process_join_server(address, connection, server_name=msg[1], player=player)
+
+        elif msg[0] == ClientAPI.MAKE_MOVE:
+            process_make_move(connection, player=player, server_name=msg[1], x=msg[2], y=msg[3])
 
         elif msg[0] == ClientAPI.START_GAME:
             process_start(address, connection, msg)
@@ -95,7 +99,7 @@ def process_start(address, connection, msg):
         current_server.start()
         print(f"{address} started server: {current_server.name}")
 
-        response = {"status": "valid", "message": f"You started the server {current_server.name}"}
+        response = {"status": "success", "message": f"You started the server {current_server.name}"}
         response_json = json.dumps(response, indent=4)
         connection.send(response_json.encode(FORMAT))
 
@@ -103,13 +107,13 @@ def process_exit_server(address: tuple[str, int], connection: socket.socket, pla
     current_server = get_game_object(games_list, player.game)
     current_server.remove_player(player)
 
-    response = {"status": "valid", "message": f"You quit the server {current_server.name}"}
+    response = {"status": "success", "message": f"You quit the server {current_server.name}"}
     response_json = json.dumps(response, indent=4)
     connection.send(response_json.encode(FORMAT))
 
-def process_join_server(address, connection, msg, player):
+def process_join_server(address, connection, server_name, player):
     # Get the server corresponding to the index server 'msg'
-    current_server = get_game_object(games_list, msg[1])
+    current_server = get_game_object(games_list, server_name)
     current_server.add_player(player)
     print(f"{address} joined server: {current_server.name}")
     server_data = {"name": current_server.name, "players": [player.name for player in current_server.players]}
@@ -119,6 +123,29 @@ def process_join_server(address, connection, msg, player):
 
     connection.send(servers_json.encode(FORMAT))
 
+def process_make_move(connection, player, server_name, x, y):
+
+    # Get Game object
+    current_server = get_game_object(games_list, server_name)
+
+    # Try to make the move
+    moved_done = current_server.make_move(player, x=int(x), y=int(y))
+
+    # Check if there is a winner
+    winner = current_server.check_winner()
+
+    # If the moved cannot be done
+    if not moved_done:
+        status = "failed"
+    else:
+        status = "success"
+
+    response = {"status": status,
+                "board": current_server.board,
+                "players": [obj.to_dict() for obj in current_server.players],
+                "winner": winner}
+    response_json = json.dumps(response, indent=4)
+    connection.send(response_json.encode(FORMAT))
 
 def process_get_server_list(connection):
     # Create a list of dictionaries with the names and players
@@ -138,7 +165,8 @@ def process_get_server(connection, server_name):
     # Create a list of dictionaries with the names and players
     game_data = {"name": current_server.name,
                  "players": [player.name for player in current_server.players],
-                 "has_started": current_server.has_started}
+                 "has_started": current_server.has_started,
+                 "board": current_server.board}
 
     # Convert the list to JSON
     server_json = json.dumps(game_data, indent=4)
