@@ -1,6 +1,5 @@
 import time
 import tkinter as tk
-from http.client import responses
 from tkinter import ttk
 import socket
 import threading
@@ -409,7 +408,7 @@ class TicTacToeApp:
         board_frame.grid(row=1, column=0, pady=(10, 20), padx=10, sticky="nsew")
 
         n_players = len(players)
-        btn_list = [[None for i in range(n_players+1)] for j in range(n_players+1)]
+        btn_list: list[list[None|ttk.Button]] = [[None for _ in range(n_players+1)] for _ in range(n_players+1)]
 
         for i in range(n_players+1):
             board_frame.rowconfigure(i, weight=1)

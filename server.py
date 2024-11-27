@@ -84,7 +84,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_start(address, connection, msg)
 
         elif msg[0] == ClientAPI.EXIT_SERVER:
-            process_exit_server(address, connection, player)
+            process_exit_server(connection, player)
         else:
             # If the player is inside a game, exclude him from it
             if player.game is not None:
@@ -106,7 +106,7 @@ def process_start(address, connection, msg):
         response_json = json.dumps(response, indent=4)
         connection.send(response_json.encode(FORMAT))
 
-def process_exit_server(address: tuple[str, int], connection: socket.socket, player: Player):
+def process_exit_server(connection: socket.socket, player: Player):
     current_server = get_game_object(games_list, player.game)
     current_server.remove_player(player)
 
