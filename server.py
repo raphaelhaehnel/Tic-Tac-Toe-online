@@ -62,7 +62,10 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         # Split the string according to the separator '/'
         msg = msg.split('/')
 
-        if msg[0] == ClientAPI.NEW_SERVER:
+        if msg[0] == ClientAPI.GET_MY_NAME:
+            process_get_my_name(address, connection, player=player)
+
+        elif msg[0] == ClientAPI.NEW_SERVER:
             process_new_server(address, connection, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.GET_SERVERS_LIST:
@@ -131,9 +134,6 @@ def process_make_move(connection, player, server_name, x, y):
     # Try to make the move
     moved_done = current_server.make_move(player, x=int(x), y=int(y))
 
-    # Check if there is a winner
-    winner = current_server.check_winner()
-
     # If the moved cannot be done
     if not moved_done:
         status = "failed"
@@ -143,8 +143,12 @@ def process_make_move(connection, player, server_name, x, y):
     response = {"status": status,
                 "board": current_server.board,
                 "players": [obj.to_dict() for obj in current_server.players],
-                "winner": winner}
+                "winner": current_server.winner}
+
+    # Convert the list to JSON
     response_json = json.dumps(response, indent=4)
+
+    # Sends the list of servers as JSON
     connection.send(response_json.encode(FORMAT))
 
 def process_get_server_list(connection):
@@ -166,13 +170,20 @@ def process_get_server(connection, server_name):
     game_data = {"name": current_server.name,
                  "players": [player.name for player in current_server.players],
                  "has_started": current_server.has_started,
-                 "board": current_server.board}
+                 "board": current_server.board,
+                 "winner": current_server.winner}
 
     # Convert the list to JSON
     server_json = json.dumps(game_data, indent=4)
 
     # Sends the list of servers as JSON
     connection.send(server_json.encode(FORMAT))
+
+def process_get_my_name(address, connection, player):
+
+    connection.send(player.name.encode(FORMAT))
+    print(f"{address} got name: {player.name}")
+
 
 def process_new_server(address, connection, server_name, player):
     # Check if the name of the new server is available

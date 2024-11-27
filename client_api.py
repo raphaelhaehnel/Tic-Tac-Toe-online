@@ -1,5 +1,8 @@
 class ClientAPI:
 
+    # Get the name of the current user
+    GET_MY_NAME = "get_my_name"
+
     # Create a new server with name "name". At the client, check name
     NEW_SERVER = "new_server" # + server_name
 
@@ -24,7 +27,8 @@ class ClientAPI:
     # Disconnect from the server
     QUIT = "quit"
 
-    requests_list = [NEW_SERVER,
+    requests_list = [GET_MY_NAME,
+                     NEW_SERVER,
                      GET_SERVERS_LIST,
                      GET_SERVER,
                      JOIN_SERVER,

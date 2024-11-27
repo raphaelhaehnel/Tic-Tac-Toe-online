@@ -25,6 +25,8 @@ class TicTacToeApp:
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect(ADDR)
             self.main_message = f"Connected to host {HOST} at port {PORT}"
+            self.client_socket.send(ClientAPI.GET_MY_NAME.encode(FORMAT))
+            self.name = self.client_socket.recv(1024).decode(FORMAT)
         except ConnectionRefusedError:
 
             # If the connection is refused, tell it to the client
@@ -473,7 +475,32 @@ class TicTacToeApp:
                 for j in range(len(players)+1):
                     btn_list[i][j].config(text=updated_board[i][j])
 
-            print("Board updated")
+            # If there is a winner
+            if response['winner'][0] != 0:
+                winner: tuple[int, list[tuple[int, int]]] = response['winner']
+                print(winner[1])
+                for list_button in btn_list:
+                    for btn in list_button:
+                        print(btn)
+                for (x, y) in winner[1]:
+
+                    print(f"winner[0] = {winner[0]}")
+                    print(f"self.name = {self.name}")
+                    print(f"players[winner[0] - 1] = {players[winner[0] - 1]}")
+
+                    if self.name == players[winner[0]-1]:
+                        color_cells = 'green'
+                    else:
+                        color_cells = 'red'
+
+                    # Color the winner cells
+                    style = ttk.Style()
+                    style.configure(style='W.TButton',
+                                    foreground=color_cells,
+                                    background=color_cells)
+                    btn_list[x][y].config(style='W.TButton')
+                break
+
             time.sleep(0.5)
 
     def make_move(self, x, y):
