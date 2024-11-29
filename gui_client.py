@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import socket
 import threading
+
 from client_api import ClientAPI
 import json
 
@@ -230,6 +231,7 @@ class TicTacToeApp:
 
         # Populate the listbox with server names
         server_list = json.loads(server_list_json)
+        print(server_list)
         for server in server_list:
             servers_listbox.insert(tk.END, server['name'])
 
@@ -368,7 +370,7 @@ class TicTacToeApp:
 
             players_listbox.delete(0, tk.END)  # Deletes all items from index 0 to the end
             for user in users:
-                players_listbox.insert(tk.END, user)
+                players_listbox.insert(tk.END, user['name'])
 
             print("Updated users list !")
             time.sleep(0.5)
@@ -421,27 +423,29 @@ class TicTacToeApp:
                 btn = ttk.Button(
                     board_frame,
                     text=button_text,
-                    command=lambda x=i, y=j: self.make_move(x, y),
+                    command=lambda x=i, y=j: self.make_move(x, y, btn_list),
                     padding=5,
                 )
                 btn.grid(row=i, column=j, sticky="nsew", padx=5, pady=5)
                 btn_list[i][j] = btn # Add the button to the list of buttons
 
-                # Players List with Symbols
+        # Players List with Symbols
         players_frame = tk.Frame(game_frame, bg="#2e2e2e")
         players_frame.grid(row=2, column=0, pady=(10, 20), padx=10, sticky="nsew")
 
         for player, symbol in zip(players, range(1, len(players)+1)):
             ttk.Label(
                 players_frame,
-                text=f"{player}: {symbol}",
+                text=f"{player['name']}: {symbol}",
                 font=("Arial", 12),
                 anchor="w",
             ).pack(anchor="w", pady=5)
 
         # Quit Game Button
         def on_quit_game():
-            self.client_socket.send(ClientAPI.QUIT.encode(FORMAT))
+            self.client_socket.send(ClientAPI.EXIT_SERVER.encode(FORMAT))
+            response = self.client_socket.recv(1024).decode(FORMAT)
+            print(response)
             self.setup_main_page()
 
         ttk.Button(
@@ -450,11 +454,14 @@ class TicTacToeApp:
             command=on_quit_game,
         ).grid(row=3, column=0, pady=(10, 20), padx=10, sticky="ew")
 
-        thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
-        thread.start()
 
-        self.threads.append(thread)
-        # TODO delete the thread from the list when it finishes
+        # Start the automatic update thread once
+        if not hasattr(self, "update_thread"):
+            self.update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
+            self.update_thread.start()
+
+            self.threads.append(self.update_thread)
+            # TODO delete the thread from the list when it finishes
 
 
     def automatic_update_game(self, btn_list: list[list[tk.Button]]):
@@ -471,49 +478,51 @@ class TicTacToeApp:
             response = json.loads(msg)
             updated_board = response['board']
             players = response['players']
+            current_player = response['current_player']
+            winner_tuple = response['winner']
 
-            # Update the game page with new board and players
-            for i in range(len(players)+1):
-                for j in range(len(players)+1):
-                    btn_list[i][j].config(text=updated_board[i][j])
-                    if players[response['current_player']-1] == self.name:
-                        btn_list[i][j]["state"] = "normal"
-                    else:
-                        btn_list[i][j]["state"] = "disabled"
+            is_winner = self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
 
-                    if updated_board[i][j] != 0:
-                        btn_list[i][j]["state"] = "disabled"
-
-
-            # If there is a winner
-            if response['winner'][0] != 0:
-                winner: tuple[int, list[tuple[int, int]]] = response['winner']
-                print(winner[1])
-                for list_button in btn_list:
-                    for btn in list_button:
-                        print(btn)
-                for (x, y) in winner[1]:
-
-                    print(f"winner[0] = {winner[0]}")
-                    print(f"self.name = {self.name}")
-                    print(f"players[winner[0] - 1] = {players[winner[0] - 1]}")
-
-                    if self.name == players[winner[0]-1]:
-                        color_cells = 'green'
-                    else:
-                        color_cells = 'red'
-
-                    # Color the winner cells
-                    style = ttk.Style()
-                    style.configure(style='W.TButton',
-                                    foreground=color_cells,
-                                    background=color_cells)
-                    btn_list[x][y].config(style='W.TButton')
+            if is_winner:
                 break
 
             time.sleep(0.5)
 
-    def make_move(self, x, y):
+    def update_board(self, players, current_player, btn_list, updated_board, winner_tuple):
+
+        # Update the game page with new board and players
+        for i in range(len(players) + 1):
+            for j in range(len(players) + 1):
+                btn_list[i][j].config(text=updated_board[i][j])
+                if players[current_player - 1]['name'] == self.name:
+                    btn_list[i][j]["state"] = "normal"
+                else:
+                    btn_list[i][j]["state"] = "disabled"
+
+                if updated_board[i][j] != 0:
+                    btn_list[i][j]["state"] = "disabled"
+
+        # If there is a winner
+        if winner_tuple[0] != 0:
+            winner: tuple[int, list[tuple[int, int]]] = winner_tuple
+
+            for (x, y) in winner[1]:
+
+                if self.name == players[winner[0] - 1]['name']:
+                    color_cells = 'green'
+                else:
+                    color_cells = 'red'
+
+                # Color the winner cells
+                style = ttk.Style()
+                style.configure(style='W.TButton',
+                                foreground=color_cells,
+                                background=color_cells)
+                btn_list[x][y].config(style='W.TButton')
+            return True
+        return False
+
+    def make_move(self, x, y, btn_list):
         # Send the move to the server
         move_message = f"{ClientAPI.MAKE_MOVE}/{self.current_server}/{x}/{y}"
         self.client_socket.send(move_message.encode(FORMAT))
@@ -525,9 +534,12 @@ class TicTacToeApp:
         if response_data['status'] == "success":
             updated_board = response_data['board']
             players = response_data['players']
+            current_player = response_data['current_player']
+            winner_tuple = response_data['winner']
 
             # Update the game page with new board and players
-            self.setup_game_page(self.current_server, players, updated_board)
+            self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
+
         else:
             print('failed to make move')  # Log error or invalid move
 

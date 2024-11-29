@@ -59,8 +59,11 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         except:
             break
 
+
         # Split the string according to the separator '/'
         msg = msg.split('/')
+
+        print(f"{player.name}: {msg[0]}")
 
         if msg[0] == ClientAPI.GET_MY_NAME:
             process_get_my_name(address, connection, player=player)
@@ -141,8 +144,11 @@ def process_make_move(connection, player, server_name, x, y):
         status = "success"
 
     response = {"status": status,
+                "name": current_server.name,
                 "board": current_server.board,
-                "players": [obj.to_dict() for obj in current_server.players],
+                "has_started": current_server.has_started,
+                "current_player": current_server.current_player,
+                "players": [player.to_dict() for player in current_server.players],
                 "winner": current_server.winner}
 
     # Convert the list to JSON
@@ -167,15 +173,16 @@ def process_get_server(connection, server_name):
     current_server = get_game_object(games_list, server_name)
 
     # Create a list of dictionaries with the names and players
-    game_data = {"name": current_server.name,
-                 "players": [player.name for player in current_server.players],
-                 "has_started": current_server.has_started,
-                 "current_player": current_server.current_player,
-                 "board": current_server.board,
-                 "winner": current_server.winner}
+    response = {"status": "success",
+                "name": current_server.name,
+                "board": current_server.board,
+                "has_started": current_server.has_started,
+                "current_player": current_server.current_player,
+                "players": [player.to_dict() for player in current_server.players],
+                "winner": current_server.winner}
 
     # Convert the list to JSON
-    server_json = json.dumps(game_data, indent=4)
+    server_json = json.dumps(response, indent=4)
 
     # Sends the list of servers as JSON
     connection.send(server_json.encode(FORMAT))

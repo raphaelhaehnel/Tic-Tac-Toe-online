@@ -21,7 +21,7 @@ class ClientAPI:
     # Start a game
     START_GAME = "start" # + server_name
 
-    # Exit the server during or before starting
+    # Exit the server during of before starting
     EXIT_SERVER = "exit_server"
 
     # Disconnect from the server
