@@ -327,9 +327,12 @@ class TicTacToeApp:
             self.current_server = None
             self.setup_main_page()
 
-        ttk.Button(self.lobby_frame, text="Start", command=on_start).grid(
-            row=2, column=0, pady=(10, 5), padx=10, sticky="ew"
-        )
+        start_button = ttk.Button(self.lobby_frame, text="Start", command=on_start)
+        start_button.grid(row=2, column=0, pady=(10, 5), padx=10, sticky="ew")
+
+        # Only the first to join the game can start it
+        if users[0] != self.name:
+            start_button['state'] = "disabled"
 
         # "Back to Main Menu" Button
         ttk.Button(self.lobby_frame, text="Back to Main Menu", command=on_exit).grid(
@@ -473,6 +476,14 @@ class TicTacToeApp:
             for i in range(len(players)+1):
                 for j in range(len(players)+1):
                     btn_list[i][j].config(text=updated_board[i][j])
+                    if players[response['current_player']-1] == self.name:
+                        btn_list[i][j]["state"] = "normal"
+                    else:
+                        btn_list[i][j]["state"] = "disabled"
+
+                    if updated_board[i][j] != 0:
+                        btn_list[i][j]["state"] = "disabled"
+
 
             # If there is a winner
             if response['winner'][0] != 0:

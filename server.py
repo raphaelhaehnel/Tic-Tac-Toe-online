@@ -170,6 +170,7 @@ def process_get_server(connection, server_name):
     game_data = {"name": current_server.name,
                  "players": [player.name for player in current_server.players],
                  "has_started": current_server.has_started,
+                 "current_player": current_server.current_player,
                  "board": current_server.board,
                  "winner": current_server.winner}
 
