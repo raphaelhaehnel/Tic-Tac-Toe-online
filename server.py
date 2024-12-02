@@ -19,9 +19,9 @@ import random
 
 # List of animal names
 animal_names = [
-    "Lion", "Tiger", "Elephant", "Zebra", "Giraffe", "Kangaroo",
-    "Panda", "Koala", "Wolf", "Fox", "Bear", "Cheetah", "Leopard",
-    "Penguin", "Seal", "Dolphin", "Whale", "Shark", "Eagle", "Falcon"
+    "Dragon", "Unicorn", "Pegasus", "Phoenix", "Griffin", "Centaur",
+    "Mermaid", "Fairy", "Elf", "Dwarf", "Wyvern", "Wizard", "Werewolf",
+    "Vampire", "Demon", "Angel", "Kraken"
 ]
 
 # Set to track picked names
