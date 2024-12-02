@@ -7,8 +7,11 @@ import threading
 from client_api import ClientAPI
 import json
 
-HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 5000  # The port used by the server
+with open("config.json", "r") as file:
+    json_file = json.load(file)
+
+HOST = json_file['HOST']  # The server's hostname or IP address
+PORT = json_file['PORT']  # The port used by the server
 FORMAT = 'utf-8'
 ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
