@@ -7,7 +7,7 @@ from client_api import ClientAPI
 import json
 
 # Define constants
-HOST = '127.0.0.1'
+HOST = '0.0.0.0'
 PORT = 5000
 FORMAT = 'utf-8'
 ADDR = (HOST, PORT)

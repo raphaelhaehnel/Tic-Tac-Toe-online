@@ -256,6 +256,9 @@ class TicTacToeApp:
         # "Join" Button
         def on_join():
 
+            if not servers_listbox.curselection():
+                return
+
             # Get the selected server from the listbox
             selected_server: str = servers_listbox.get(servers_listbox.curselection())
 
