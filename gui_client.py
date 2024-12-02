@@ -219,8 +219,9 @@ class TicTacToeApp:
             height=10,
             bg="#444444",
             fg="#ffffff",
-            font=("Arial", 12),
+            font=("Arial", 12, "bold"),
             bd=0,
+            # For selected items
             selectbackground="#555555",
         )
         servers_listbox.grid(row=1, column=0, pady=(10, 20), padx=10, sticky="nsew")
@@ -233,20 +234,41 @@ class TicTacToeApp:
         server_list = json.loads(server_list_json)
         print(server_list)
         for server in server_list:
-            servers_listbox.insert(tk.END, server['name'])
+            server_name = server['name']
+            player_count = len(server['players'])  # Assuming this field contains the number of players
+            has_started = server['has_started']  # Assuming this field indicates if the server has started
+
+            # Format the display string
+            display_text = f"{server_name} - Players: {player_count} - {'Started' if has_started else 'Waiting'}"
+
+            # Add to listbox
+            servers_listbox.insert(tk.END, display_text)
+
+            # Color coding based on server status
+            if has_started:
+                servers_listbox.itemconfig(tk.END, {'fg': '#F06161'})  # Red for started servers
+            else:
+                servers_listbox.itemconfig(tk.END, {'fg': '#6AF066'})  # Green for waiting servers
 
         # "Join" Button
         def on_join():
-            selected_server = servers_listbox.get(servers_listbox.curselection())
+
+            # Get the selected server from the listbox
+            selected_server: str = servers_listbox.get(servers_listbox.curselection())
+
+            # Extract the name from the string
+            server_name = selected_server.split(' - ')[0]
 
             # Send request to join the server
-            self.client_socket.send((ClientAPI.JOIN_SERVER + '/' + selected_server).encode(FORMAT))
+            self.client_socket.send((ClientAPI.JOIN_SERVER + '/' + server_name).encode(FORMAT))
             msg = self.client_socket.recv(1024).decode(FORMAT)
             response = json.loads(msg)
 
-            print(f"{msg}")
-            self.current_server = response['name']
-            self.setup_lobby_page(response['name'], response['players'])
+            if response["status"] == "success":
+                self.current_server = response['name']
+                self.setup_lobby_page(response['name'], response['players'])
+            else:
+                print(f"{msg}")
 
         ttk.Button(self.join_server_frame, text="Join", command=on_join).grid(
             row=2, column=0, pady=(10, 5), padx=10, sticky="ew"
@@ -306,6 +328,8 @@ class TicTacToeApp:
         for user in users:
             players_listbox.insert(tk.END, user)
 
+        players_listbox.bind("<<ListboxSelect>>", None)
+
         # "Start" Button
         def on_start():
             # Notify the server to start the game
@@ -341,14 +365,14 @@ class TicTacToeApp:
             row=3, column=0, pady=(5, 10), padx=10, sticky="ew"
         )
 
-        thread = threading.Thread(target=self.automatic_update_lobby, args=[players_listbox], daemon=True)
+        thread = threading.Thread(target=self.automatic_update_lobby, args=[players_listbox, start_button], daemon=True)
         thread.start()
 
         self.threads.append(thread)
         #TODO delete the thread from the list when it finishes
 
 
-    def automatic_update_lobby(self, players_listbox: tk.Listbox):
+    def automatic_update_lobby(self, players_listbox: tk.Listbox, start_button: ttk.Button):
 
         while players_listbox.winfo_exists():
 
@@ -368,9 +392,14 @@ class TicTacToeApp:
                 break
             users = response['players']
 
+            # If the first player left the game, checks if the current player is now
+            # the first player
+            if users[0] == self.name and start_button['state'] == 'disabled':
+                start_button['state'] = "enabled"
+
             players_listbox.delete(0, tk.END)  # Deletes all items from index 0 to the end
             for user in users:
-                players_listbox.insert(tk.END, user['name'])
+                players_listbox.insert(tk.END, user)
 
             print("Updated users list !")
             time.sleep(0.5)
@@ -436,7 +465,7 @@ class TicTacToeApp:
         for player, symbol in zip(players, range(1, len(players)+1)):
             ttk.Label(
                 players_frame,
-                text=f"{player['name']}: {symbol}",
+                text=f"{player}: {symbol}",
                 font=("Arial", 12),
                 anchor="w",
             ).pack(anchor="w", pady=5)
@@ -476,6 +505,7 @@ class TicTacToeApp:
                 break
 
             response = json.loads(msg)
+            print(response)
             updated_board = response['board']
             players = response['players']
             current_player = response['current_player']
@@ -494,7 +524,7 @@ class TicTacToeApp:
         for i in range(len(players) + 1):
             for j in range(len(players) + 1):
                 btn_list[i][j].config(text=updated_board[i][j])
-                if players[current_player - 1]['name'] == self.name:
+                if players[current_player - 1] == self.name:
                     btn_list[i][j]["state"] = "normal"
                 else:
                     btn_list[i][j]["state"] = "disabled"
@@ -508,7 +538,7 @@ class TicTacToeApp:
 
             for (x, y) in winner[1]:
 
-                if self.name == players[winner[0] - 1]['name']:
+                if self.name == players[winner[0] - 1]:
                     color_cells = 'green'
                 else:
                     color_cells = 'red'
@@ -530,6 +560,7 @@ class TicTacToeApp:
         # Receive the updated board state and player turn
         response = self.client_socket.recv(1024).decode(FORMAT)
         response_data = json.loads(response)
+        print(response)
 
         if response_data['status'] == "success":
             updated_board = response_data['board']
