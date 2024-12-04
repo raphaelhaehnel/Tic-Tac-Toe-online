@@ -51,6 +51,10 @@ class TicTacToeApp:
         try:
             # Set up the client socket
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+            # Set a timeout of 3 seconds for the requests
+            self.client_socket.settimeout(3.0)
+
             self.client_socket.connect(ADDR)
             self.main_message = f"Connected to host {HOST} at port {PORT}"
             self.client_socket.send(ClientAPI.GET_MY_NAME.encode(FORMAT))
