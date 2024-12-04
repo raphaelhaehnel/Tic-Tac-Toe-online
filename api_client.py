@@ -1,4 +1,8 @@
 class ClientAPI:
+    """
+    Define the API of the server.
+    The client must send specific requests defined in this class to get data or send data.
+    """
 
     # Get the name of the current user
     GET_MY_NAME = "get_my_name"
@@ -33,6 +37,6 @@ class ClientAPI:
                      GET_SERVER,
                      JOIN_SERVER,
                      MAKE_MOVE,
-                     EXIT_SERVER,
                      START_GAME,
+                     EXIT_SERVER,
                      QUIT]

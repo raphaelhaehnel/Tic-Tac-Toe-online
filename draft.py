@@ -3,7 +3,7 @@ from http.client import responses
 from tkinter import ttk
 import socket
 import threading
-from client_api import ClientAPI
+from api_client import ClientAPI
 import json
 
 HOST = '127.0.0.1'  # The server's hostname or IP address

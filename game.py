@@ -1,34 +1,79 @@
 from player import Player
 
-class GameServer:
+class Game:
+    """
+    Define a single game.
+    A game is created by the server, by request from a client
+    """
 
     def __init__(self, name: str):
+        """
+        :param name: Name of the game
+        """
+        # Name of the game
         self.name: str = name
+
+        # List of players that are currently inside the game
         self.players: list[Player] = list()
-        self.has_started = False
+
+        # Flag if the game has started
+        self.has_started: bool = False
+
+        # A matrix defining the game board. It is defined by lists of int.
         self.board: list[list[int]] | None = None
-        self.current_player = 1
+
+        # Symbol of the player that must play now
+        self.current_player: int = 1
+
+        # A tuple containing the symbol of the winner and the winner cells coordinates
         self.winner: tuple[int, list[tuple[int, int]]] = 0, []
 
     def add_player(self, player: Player):
-        player.join_server(self.name)
+        """
+        Add a player to the game
+        :param player: A PLayer object
+        :return: None
+        """
+        # Add the name of the server to the player game field
+        player.join_game(self.name)
+
+        # Add the player to the list of players
         self.players.append(player)
 
     def remove_player(self, player):
-        player.quit_server()
+        """
+        Remove a player from the game
+        :param player: A PLayer object
+        :return: None
+        """
+        player.quit_game()
         self.players.remove(player)
 
     def start(self):
+        """
+        Start the game
+        :return: None
+        """
         self.has_started = True
         self.generate_board()
 
     def generate_board(self):
+        """
+        Generate an empty board
+        :return: None
+        """
         x = len(self.players)
         self.board = [[0 for i in range(x+1)] for j in range(x+1)]
 
     def make_move(self, player: Player, x, y):
-
-        # It's not your turn
+        """
+        Make move for the player
+        :param player: A PLayer object
+        :param x: The x-position of the player move
+        :param y: The y-position of the player move
+        :return: True if the operation succeed, false otherwise
+        """
+        # If it's not your turn
         if self.players.index(player) + 1 != self.current_player:
             return False
 
@@ -83,7 +128,6 @@ class GameServer:
         """
         Checks if a given line (row, column, or diagonal) contains exactly 'count'
         consecutive occurrences of the given symbol.
-
         :param line: A list representing the row, column, or diagonal.
         :param symbol: The player's symbol to check for.
         :param count: The required number of consecutive symbols.
@@ -105,7 +149,13 @@ class GameServer:
 
         return []
 
-def get_game_object(games: list[GameServer], name: str):
+def get_game_object(games: list[Game], name: str):
+    """
+    Given a list of games and a name of a specific game, get the corresponding game object from the list
+    :param games: list of games
+    :param name: name of a game
+    :return: a Game object
+    """
     for game in games:
         if game.name == name:
             return game
