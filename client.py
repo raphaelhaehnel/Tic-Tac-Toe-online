@@ -19,7 +19,7 @@ class TicTacToeApp:
     def __init__(self, root: tk.Tk, client_socket: socket.socket, name: str, main_message: str):
         self.root = root
         self.root.title("Tic Tac Toe")
-        self.root.geometry("400x400")
+        self.root.geometry("400x450")
         self.root.iconbitmap("tic-tac-toe.ico")
         self.style = ttk.Style()
 
@@ -171,6 +171,9 @@ class TicTacToeApp:
             # TODO: If the server is available, go to lobby
             self.current_server = response['name']
             self.setup_lobby_page(server_name, response['players'])
+
+        # Bind Enter key to the on_ok function
+        server_name_entry.bind("<Return>", lambda event: on_ok())
 
         ttk.Button(self.new_server_frame, text="Ok", command=on_ok).grid(row=2, column=0, pady=10, padx=10, sticky="ew")
 
@@ -488,6 +491,10 @@ class TicTacToeApp:
         # Start the automatic update thread once
         update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
         update_thread.start()
+        # TODO We need to run the thread only when it is not your turn.
+        # TODO If it's my turn, do not create a thread.
+        # TODO If it's not your turn, create a thread.
+        # TODO If you just played, create a thread
 
         self.threads.append(update_thread)
         # TODO delete the thread from the list when it finishes

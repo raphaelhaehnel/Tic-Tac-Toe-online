@@ -86,68 +86,45 @@ class Game:
         self.winner = self.check_winner()
         return True
 
-    def check_winner(self) -> tuple[int, list[tuple[int, int]]]:
-        """
-        Checks if there's a winner in the Tic-Tac-Toe game with the rule
-        that the first player to get exactly 3 in a row wins.
-        :return: A tuple containing the player number (1-based index) and a list of winning positions
-                 if a winner exists, or (0, []) otherwise.
-        """
-        size = len(self.board)  # Size of the grid is (x+1)
+    def check_winner(self):
+        size = len(self.board)
+        win_length = 3
 
-        for player_symbol in range(1, len(self.players) + 1):  # Symbols start from 1 to x
-            # Check rows
-            for row_idx, row in enumerate(self.board):
-                winner_positions = self.check_winner_helper(row, player_symbol, 3)
-                if winner_positions:
-                    return player_symbol, [(row_idx, col_idx) for col_idx in winner_positions]
+        # Function to check a line (row, column, or diagonal)
+        def check_line(cells):
+            if len(set(cells)) == 1 and cells[0] != 0:
+                return cells[0]  # Winner is the player number (1, 2, etc.)
+            return 0
 
-            # Check columns
-            for col_idx in range(size):
-                column = [self.board[row_idx][col_idx] for row_idx in range(size)]
-                winner_positions = self.check_winner_helper(column, player_symbol, 3)
-                if winner_positions:
-                    return player_symbol, [(row_idx, col_idx) for row_idx in winner_positions]
+        # Check rows
+        for row in range(size):
+            for col in range(size - win_length + 1):
+                winner = check_line(self.board[row][col:col + win_length])
+                if winner:
+                    return winner, [(row, col + i) for i in range(win_length)]
 
-            # Check main diagonal
-            main_diag = [self.board[i][i] for i in range(size)]
-            winner_positions = self.check_winner_helper(main_diag, player_symbol, 3)
-            if winner_positions:
-                return player_symbol, [(i, i) for i in winner_positions]
+        # Check columns
+        for col in range(size):
+            for row in range(size - win_length + 1):
+                winner = check_line([self.board[row + i][col] for i in range(win_length)])
+                if winner:
+                    return winner, [(row + i, col) for i in range(win_length)]
 
-            # Check anti-diagonal
-            anti_diag = [self.board[i][size - 1 - i] for i in range(size)]
-            winner_positions = self.check_winner_helper(anti_diag, player_symbol, 3)
-            if winner_positions:
-                return player_symbol, [(i, size - 1 - i) for i in winner_positions]
+        # Check diagonals (top-left to bottom-right)
+        for row in range(size - win_length + 1):
+            for col in range(size - win_length + 1):
+                winner = check_line([self.board[row + i][col + i] for i in range(win_length)])
+                if winner:
+                    return winner, [(row + i, col + i) for i in range(win_length)]
 
-        # No winner yet
-        return 0, []
+        # Check diagonals (top-right to bottom-left)
+        for row in range(size - win_length + 1):
+            for col in range(win_length - 1, size):
+                winner = check_line([self.board[row + i][col - i] for i in range(win_length)])
+                if winner:
+                    return winner, [(row + i, col - i) for i in range(win_length)]
 
-    def check_winner_helper(self, line, symbol, count):
-        """
-        Checks if a given line (row, column, or diagonal) contains exactly 'count'
-        consecutive occurrences of the given symbol.
-        :param line: A list representing the row, column, or diagonal.
-        :param symbol: The player's symbol to check for.
-        :param count: The required number of consecutive symbols.
-        :return: A list of indices where the streak occurs if found, otherwise an empty list.
-        """
-        streak = 0
-        start_index = None
-
-        for idx, cell in enumerate(line):
-            if cell == symbol:
-                if streak == 0:
-                    start_index = idx
-                streak += 1
-                if streak == count:
-                    return list(range(start_index, start_index + count))
-            else:
-                streak = 0
-                start_index = None
-
-        return []
+        return 0, []  # No winner
 
 def get_game_object(games: list[Game], name: str):
     """

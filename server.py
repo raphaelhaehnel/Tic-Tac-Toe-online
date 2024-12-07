@@ -64,7 +64,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         # Split the string according to the separator '/'
         msg = msg.split('/')
 
-        print(f"{player.name}: {msg[0]}")
+        # print(f"{player.name}: {msg[0]}")
 
         if msg[0] == ClientAPI.GET_MY_NAME:
             process_get_my_name(connection, address, player=player)
@@ -161,6 +161,7 @@ def process_get_server(connection, server_name):
                 "current_player": current_server.current_player,
                 "players": [player.name for player in current_server.players],
                 "winner": current_server.winner}
+    print("WINNER: ", current_server.winner)
 
     # Convert the list to JSON
     server_json = json.dumps(response)
