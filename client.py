@@ -505,14 +505,15 @@ class TicTacToeApp:
                 break
 
             response = json.loads(msg)
+
             updated_board = response['board']
             players = response['players']
             current_player = response['current_player']
             winner_tuple = response['winner']
 
-            is_winner = self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
+            end_game = self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
 
-            if is_winner:
+            if end_game:
                 break
 
             time.sleep(0.5)
@@ -554,11 +555,20 @@ class TicTacToeApp:
                 self.display_winner_overlay(players[winner[0] - 1])
 
             return True
+
+        # If the board is full
+        if all(cell != 0 for row in updated_board for cell in row):
+            self.display_winner_overlay("")
+            return True
+
         return False
 
     def display_winner_overlay(self, winner_name):
         # Determine the message and color based on the winner
-        if winner_name == self.name:
+        if winner_name == "":
+            message = "It's a tie."
+            color = "gray"
+        elif winner_name == self.name:
             message = "You Won!"
             color = "green"
         else:
