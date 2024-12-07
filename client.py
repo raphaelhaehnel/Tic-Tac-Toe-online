@@ -16,7 +16,7 @@ FORMAT = 'utf-8'
 ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
 class TicTacToeApp:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: tk.Tk, client_socket: socket.socket, name: str, main_message: str):
         self.root = root
         self.root.title("Tic Tac Toe")
         self.root.geometry("400x400")
@@ -29,8 +29,9 @@ class TicTacToeApp:
         self.client_socket: socket.socket | None = None
         self.main_message: str | None = None
 
-        # Setup the client socket
-        self.setup_socket()
+        self.client_socket = client_socket
+        self.name = name
+        self.main_message = main_message
 
         # Apply dark mode styles
         self.setup_dark_mode()
@@ -46,24 +47,6 @@ class TicTacToeApp:
 
         # Bind the on_close method to the window close event
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-
-    def setup_socket(self):
-        try:
-            # Set up the client socket
-            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            # Set a timeout of 3 seconds for the requests
-            self.client_socket.settimeout(3.0)
-
-            self.client_socket.connect(ADDR)
-            self.main_message = f"Connected to host {HOST} at port {PORT}"
-            self.client_socket.send(ClientAPI.GET_MY_NAME.encode(FORMAT))
-            self.name = self.client_socket.recv(1024).decode(FORMAT)
-
-        except (ConnectionRefusedError, TimeoutError) as e:
-            # If the connection is refused, tell it to the client
-            self.client_socket = None
-            self.main_message = f"Error: cannot connect to host {HOST} at port {PORT}"
 
     def setup_dark_mode(self):
         self.root.configure(bg="#2e2e2e")
@@ -247,7 +230,7 @@ class TicTacToeApp:
 
         # Populate the listbox with server names
         server_list = json.loads(server_list_json)
-        print(server_list)
+
         for server in server_list:
             server_name = server['name']
             player_count = len(server['players'])  # Assuming this field contains the number of players
@@ -503,12 +486,11 @@ class TicTacToeApp:
 
 
         # Start the automatic update thread once
-        if not hasattr(self, "update_thread"):
-            self.update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
-            self.update_thread.start()
+        update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
+        update_thread.start()
 
-            self.threads.append(self.update_thread)
-            # TODO delete the thread from the list when it finishes
+        self.threads.append(update_thread)
+        # TODO delete the thread from the list when it finishes
 
 
     def automatic_update_game(self, btn_list: list[list[tk.Button]]):
@@ -523,7 +505,6 @@ class TicTacToeApp:
                 break
 
             response = json.loads(msg)
-            print(response)
             updated_board = response['board']
             players = response['players']
             current_player = response['current_player']
@@ -565,10 +546,37 @@ class TicTacToeApp:
                 style = ttk.Style()
                 style.configure(style='W.TButton',
                                 foreground=color_cells,
-                                background=color_cells)
+                                background=color_cells,
+                                font=('Arial', 12, 'bold'))  # Set font to bold)
                 btn_list[x][y].config(style='W.TButton')
+
+                # Display winning message overlay
+                self.display_winner_overlay(players[winner[0] - 1])
+
             return True
         return False
+
+    def display_winner_overlay(self, winner_name):
+        # Determine the message and color based on the winner
+        if winner_name == self.name:
+            message = "You Won!"
+            color = "green"
+        else:
+            message = f"You Lose.\nPlayer {winner_name} Won."
+            color = "red"
+
+        # Create a label to display the text
+        overlay_label = tk.Label(
+            self.root,
+            text=message,
+            fg=color,
+            font=("Arial", 22, "bold"),
+            justify="center"
+        )
+        overlay_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Prevent interaction with underlying widgets
+        overlay_label.bind("<Button-1>", lambda e: None)
 
     def make_move(self, x, y, btn_list):
         # Send the move to the server
@@ -603,7 +611,36 @@ class TicTacToeApp:
 
         self.root.destroy()
 
-if __name__ == "__main__":
+def setup_socket():
+    try:
+        # Set up the client socket
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Set a timeout of 3 seconds for the requests
+        client_socket.settimeout(3.0)
+
+        client_socket.connect(ADDR)
+        main_message = f"Connected to host {HOST} at port {PORT}"
+        client_socket.send(ClientAPI.GET_MY_NAME.encode(FORMAT))
+        name = client_socket.recv(1024).decode(FORMAT)
+
+    except (ConnectionRefusedError, TimeoutError) as e:
+        # If the connection is refused, tell it to the client
+        client_socket = None
+        main_message = f"Error: cannot connect to host {HOST} at port {PORT}"
+        name = None
+
+    return client_socket, name, main_message
+
+def main():
+
+    # Setup client socket
+    client_socket, name, main_message = setup_socket()
+
     root = tk.Tk()
-    app = TicTacToeApp(root)
+    app = TicTacToeApp(root, client_socket, name, main_message)
     root.mainloop()
+
+if __name__ == "__main__":
+    main()
+

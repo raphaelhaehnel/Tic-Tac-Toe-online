@@ -27,6 +27,10 @@ animal_names = [
 picked_names = set()
 
 def get_random_animal():
+    """
+    Selects a random animal name that hasn't been picked yet
+    :return: String of a random animal
+    """
     global picked_names
     if len(picked_names) >= len(animal_names):
         raise ValueError("All animal names have already been picked!")
@@ -40,9 +44,9 @@ def get_random_animal():
 def handle_client(connection: socket.socket, address: tuple[str, int]):
     """
     Handles a single client connection.
-    :param connection:
-    :param address:
-    :return:
+    :param connection: socket representing the connection
+    :param address: tuple (hostaddr, port)
+    :return: None
     """
     print(f"New connection at {address}")
 
@@ -63,13 +67,13 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         print(f"{player.name}: {msg[0]}")
 
         if msg[0] == ClientAPI.GET_MY_NAME:
-            process_get_my_name(address, connection, player=player)
+            process_get_my_name(connection, address, player=player)
 
         elif msg[0] == ClientAPI.NEW_SERVER:
             process_new_server(address, connection, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.GET_SERVERS_LIST:
-            process_get_server_list(connection)
+            process_get_servers_list(connection)
 
         elif msg[0] == ClientAPI.GET_SERVER:
             process_get_server(connection, server_name=msg[1])
@@ -81,7 +85,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_make_move(connection, player=player, server_name=msg[1], x=msg[2], y=msg[3])
 
         elif msg[0] == ClientAPI.START_GAME:
-            process_start(address, connection, msg)
+            process_start_game(address, connection, msg)
 
         elif msg[0] == ClientAPI.EXIT_SERVER:
             process_exit_server(connection, player)
@@ -98,8 +102,16 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
                     games_list.remove(current_server)
             break
 
-def process_get_my_name(address, connection, player):
+    # Free the name player from the picked names
+    picked_names.remove(player.name)
 
+def process_get_my_name(connection, address, player):
+    """
+    :param connection: socket representing the connection
+    :param address: tuple (hostaddr, port)
+    :param player: Player object
+    :return: None
+    """
     connection.send(player.name.encode(FORMAT))
     print(f"{address} got name: {player.name}")
 
@@ -124,7 +136,7 @@ def process_new_server(address, connection, server_name, player):
         servers_json = json.dumps(server_data)
         connection.send(servers_json.encode(FORMAT))
 
-def process_get_server_list(connection):
+def process_get_servers_list(connection):
     # Create a list of dictionaries with the names and players
     games_data = [{"name": game.name,
                    "players": [player.name for player in game.players],
@@ -211,7 +223,7 @@ def process_make_move(connection, player, server_name, x, y):
     # Sends the list of servers as JSON
     connection.send(response_json.encode(FORMAT))
 
-def process_start(address, connection, msg):
+def process_start_game(address, connection, msg):
     current_server = get_game_object(games_list, msg[1])
     if len(current_server.players) <= 1:
         response = {"status": "error", "message": "You need more people in your server"}
