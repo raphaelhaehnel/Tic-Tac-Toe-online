@@ -261,10 +261,10 @@ class TicTacToeApp:
             selected_server: str = servers_listbox.get(servers_listbox.curselection())
 
             # Extract the name from the string
-            server_name = selected_server.split(' - ')[0]
+            selected_server_name = selected_server.split(' - ')[0]
 
             # Send request to join the server
-            self.client_socket.send((ClientAPI.JOIN_SERVER + '/' + server_name).encode(FORMAT))
+            self.client_socket.send((ClientAPI.JOIN_SERVER + '/' + selected_server_name).encode(FORMAT))
             msg = self.client_socket.recv(1024).decode(FORMAT)
             response = json.loads(msg)
 
@@ -555,7 +555,7 @@ class TicTacToeApp:
                 style.configure(style='W.TButton',
                                 foreground=color_cells,
                                 background=color_cells,
-                                font=('Arial', 12, 'bold'))  # Set font to bold)
+                                font=('Arial', 12, 'bold'))  # Set font to bold
                 btn_list[x][y].config(style='W.TButton')
 
                 # Display winning message overlay
@@ -641,7 +641,7 @@ def setup_socket():
         client_socket.send(ClientAPI.GET_MY_NAME.encode(FORMAT))
         name = client_socket.recv(1024).decode(FORMAT)
 
-    except (ConnectionRefusedError, TimeoutError) as e:
+    except (ConnectionRefusedError, TimeoutError):
         # If the connection is refused, tell it to the client
         client_socket = None
         main_message = f"Error: cannot connect to host {HOST} at port {PORT}"
@@ -655,7 +655,7 @@ def main():
     client_socket, name, main_message = setup_socket()
 
     root = tk.Tk()
-    app = TicTacToeApp(root, client_socket, name, main_message)
+    TicTacToeApp(root, client_socket, name, main_message)
     root.mainloop()
 
 if __name__ == "__main__":

@@ -14,9 +14,8 @@ FORMAT = 'utf-8'
 ADDR = (HOST, PORT)
 
 games_list = list()
-games_list.append(Game("Game1"))
 
-# List of animal names
+# When a user connects to the server, a name from this list is assigned to him (he cannot choose his name)
 animal_names = [
     "Dragon", "Unicorn", "Pegasus", "Phoenix", "Griffin", "Centaur",
     "Mermaid", "Fairy", "Elf", "Dwarf", "Wyvern", "Wizard", "Werewolf",
@@ -58,19 +57,17 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         try:
             # Get a request from the client
             msg = connection.recv(1024).decode(FORMAT)
-        except:
+        except (ConnectionRefusedError, TimeoutError, OSError):
             break
 
         # Split the string according to the separator '/'
         msg = msg.split('/')
 
-        # print(f"{player.name}: {msg[0]}")
-
         if msg[0] == ClientAPI.GET_MY_NAME:
             process_get_my_name(connection, address, player=player)
 
         elif msg[0] == ClientAPI.NEW_SERVER:
-            process_new_server(address, connection, server_name=msg[1], player=player)
+            process_new_server(connection, address, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.GET_SERVERS_LIST:
             process_get_servers_list(connection)
@@ -79,13 +76,13 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_get_server(connection, server_name=msg[1])
 
         elif msg[0] == ClientAPI.JOIN_SERVER:
-            process_join_server(address, connection, server_name=msg[1], player=player)
+            process_join_server(connection, address, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.MAKE_MOVE:
             process_make_move(connection, player=player, server_name=msg[1], x=msg[2], y=msg[3])
 
         elif msg[0] == ClientAPI.START_GAME:
-            process_start_game(address, connection, msg)
+            process_start_game(connection, address, msg)
 
         elif msg[0] == ClientAPI.EXIT_SERVER:
             process_exit_server(connection, player)
@@ -105,7 +102,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
     # Free the name player from the picked names
     picked_names.remove(player.name)
 
-def process_get_my_name(connection, address, player):
+def process_get_my_name(connection: socket.socket, address: tuple[str, int], player):
     """
     :param connection: socket representing the connection
     :param address: tuple (hostaddr, port)
@@ -115,7 +112,7 @@ def process_get_my_name(connection, address, player):
     connection.send(player.name.encode(FORMAT))
     print(f"{address} got name: {player.name}")
 
-def process_new_server(address, connection, server_name, player):
+def process_new_server(connection: socket.socket, address: tuple[str, int], server_name, player):
     # Check if the name of the new server is available
     if get_game_object(games_list, server_name) is not None:
         connection.send("Name already exists".encode(FORMAT))
@@ -148,7 +145,7 @@ def process_get_servers_list(connection):
     # Sends the list of servers as JSON
     connection.send(servers_json.encode(FORMAT))
 
-def process_get_server(connection, server_name):
+def process_get_server(connection: socket.socket, server_name: str):
 
     # Get the server corresponding to the index server 'msg'
     current_server = get_game_object(games_list, server_name)
@@ -169,7 +166,7 @@ def process_get_server(connection, server_name):
     # Sends the list of servers as JSON
     connection.send(server_json.encode(FORMAT))
 
-def process_join_server(address, connection, server_name, player):
+def process_join_server(connection: socket.socket, address: tuple[str, int], server_name, player):
 
     # Get the server corresponding to the index server 'msg'
     current_server = get_game_object(games_list, server_name)
@@ -196,7 +193,7 @@ def process_join_server(address, connection, server_name, player):
 
     connection.send(response.encode(FORMAT))
 
-def process_make_move(connection, player, server_name, x, y):
+def process_make_move(connection: socket.socket, player, server_name, x, y):
 
     # Get Game object
     current_server = get_game_object(games_list, server_name)
@@ -224,7 +221,7 @@ def process_make_move(connection, player, server_name, x, y):
     # Sends the list of servers as JSON
     connection.send(response_json.encode(FORMAT))
 
-def process_start_game(address, connection, msg):
+def process_start_game(connection: socket.socket, address: tuple[str, int], msg):
     current_server = get_game_object(games_list, msg[1])
     if len(current_server.players) <= 1:
         response = {"status": "error", "message": "You need more people in your server"}
@@ -251,9 +248,7 @@ def process_exit_server(connection: socket.socket, player: Player):
     response_json = json.dumps(response)
     connection.send(response_json.encode(FORMAT))
 
-
-if __name__ == '__main__':
-
+def main():
     # Initialize socket object
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -271,6 +266,11 @@ if __name__ == '__main__':
 
         thread = threading.Thread(target=handle_client, args=(connection, address))
         thread.start()
+
+if __name__ == '__main__':
+    main()
+
+
 
 
 
