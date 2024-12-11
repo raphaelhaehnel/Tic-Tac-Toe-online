@@ -98,14 +98,16 @@ class TicTacToeApp:
         # Title Label
         ttk.Label(self.main_frame, text="Tic Tac Toe", font=("Arial", 20)).grid(row=0, column=0, pady=10, sticky="n")
 
+        ttk.Label(self.main_frame, text=f"Your name: {self.name}", font=("Arial", 12, "bold")).grid(row=1, column=0, pady=5, sticky="n")
+
         # Buttons
-        ttk.Button(self.main_frame, text="New server", command=self.setup_new_server_page).grid(row=1, column=0,
+        ttk.Button(self.main_frame, text="New server", command=self.setup_new_server_page).grid(row=2, column=0,
                                                                                                 pady=10, padx=10,
                                                                                                 sticky="ew")
-        ttk.Button(self.main_frame, text="Join server", command=self.setup_join_server_page).grid(row=2, column=0,
+        ttk.Button(self.main_frame, text="Join server", command=self.setup_join_server_page).grid(row=3, column=0,
                                                                                                   pady=10, padx=10,
                                                                                                   sticky="ew")
-        ttk.Button(self.main_frame, text="Quit game", command=self.root.quit).grid(row=3, column=0, pady=10, padx=10,
+        ttk.Button(self.main_frame, text="Quit game", command=self.root.quit).grid(row=4, column=0, pady=10, padx=10,
                                                                                    sticky="ew")
 
         # Server Status Label
@@ -115,7 +117,7 @@ class TicTacToeApp:
             font=("Arial", 10),
             foreground="green" if self.client_socket else "red",
         )
-        server_status_label.grid(row=4, column=0, pady=20, sticky="s")
+        server_status_label.grid(row=5, column=0, pady=20, sticky="s")
 
     def setup_new_server_page(self):
         self.clear_frame()
@@ -153,6 +155,7 @@ class TicTacToeApp:
         # Input Field
         ttk.Label(self.new_server_frame, text="Enter server name:").grid(row=1, column=0, pady=5, sticky="n")
         server_name_entry = ttk.Entry(self.new_server_frame, width=30)
+        server_name_entry.focus_set()
         server_name_entry.grid(row=1, column=0, pady=(30, 10), padx=10, sticky="n")
 
         # "Ok" Button

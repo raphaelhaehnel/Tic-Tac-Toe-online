@@ -158,7 +158,6 @@ def process_get_server(connection: socket.socket, server_name: str):
                 "current_player": current_server.current_player,
                 "players": [player.name for player in current_server.players],
                 "winner": current_server.winner}
-    print("WINNER: ", current_server.winner)
 
     # Convert the list to JSON
     server_json = json.dumps(response)
