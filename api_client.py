@@ -30,13 +30,3 @@ class ClientAPI:
 
     # Disconnect from the server
     QUIT = "quit"
-
-    requests_list = [GET_MY_NAME,
-                     NEW_SERVER,
-                     GET_SERVERS_LIST,
-                     GET_SERVER,
-                     JOIN_SERVER,
-                     MAKE_MOVE,
-                     START_GAME,
-                     EXIT_SERVER,
-                     QUIT]

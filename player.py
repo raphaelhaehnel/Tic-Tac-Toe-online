@@ -3,6 +3,7 @@ class Player:
     Define a single player.
     A player is created by the server, when a new client is trying to connect to it
     """
+
     def __init__(self, address: tuple[str, int], name: str):
         """
         :param address: Tuple containing the address and the port of the player

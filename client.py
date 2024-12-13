@@ -23,8 +23,6 @@ class TicTacToeApp:
         self.root.iconbitmap("tic-tac-toe.ico")
         self.style = ttk.Style()
 
-        self.threads: list[threading.Thread] = [] # Initializes the threads
-
         self.name: str | None = None
         self.client_socket: socket.socket | None = None
         self.main_message: str | None = None
@@ -44,11 +42,16 @@ class TicTacToeApp:
 
         ## Local parameters
         self.current_server = None # Name of the current server
+        self.is_my_turn = False
 
         # Bind the on_close method to the window close event
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def setup_dark_mode(self):
+        """
+        Setup dark mode UI
+        :return: None
+        """
         self.root.configure(bg="#2e2e2e")
         self.style.configure(
             "TLabel",
@@ -70,6 +73,10 @@ class TicTacToeApp:
         )
 
     def setup_main_page(self):
+        """
+        Setup main page
+        :return: None
+        """
         self.clear_frame()
 
         # Outer frame for margins
@@ -120,6 +127,10 @@ class TicTacToeApp:
         server_status_label.grid(row=5, column=0, pady=20, sticky="s")
 
     def setup_new_server_page(self):
+        """
+        Setup new server page
+        :return: None
+        """
         self.clear_frame()
 
         # Outer frame for margins
@@ -170,10 +181,11 @@ class TicTacToeApp:
 
             response = json.loads(msg)  # Assuming the server returns a JSON with server details and players
 
-            print(f"{msg}")
-            # TODO: If the server is available, go to lobby
-            self.current_server = response['name']
-            self.setup_lobby_page(server_name, response['players'])
+            if response['status'] == "success":
+                self.current_server = response['name']
+                self.setup_lobby_page(server_name, response['players'])
+            else:
+                print(response['msg'])
 
         # Bind Enter key to the on_ok function
         server_name_entry.bind("<Return>", lambda event: on_ok())
@@ -185,6 +197,10 @@ class TicTacToeApp:
                                                                                           padx=10, sticky="ew")
 
     def setup_join_server_page(self):
+        """
+        Setup join server page
+        :return: None
+        """
         self.clear_frame()
 
         # Outer frame for margins
@@ -286,7 +302,13 @@ class TicTacToeApp:
             row=3, column=0, pady=(5, 10), padx=10, sticky="ew"
         )
 
-    def setup_lobby_page(self, server_name, users):
+    def setup_lobby_page(self, server_name: str, users: list[str]):
+        """
+        Setup lobby page
+        :param server_name: Name of the server
+        :param users: List of users
+        :return: None
+        """
         self.clear_frame()
 
         # Outer frame for margins
@@ -356,7 +378,7 @@ class TicTacToeApp:
 
             self.client_socket.send(ClientAPI.EXIT_SERVER.encode(FORMAT))
             response = self.client_socket.recv(1024).decode(FORMAT)
-            print(response)
+            print(json.loads(response)['message'])
             self.current_server = None
             self.setup_main_page()
 
@@ -375,12 +397,14 @@ class TicTacToeApp:
         thread = threading.Thread(target=self.automatic_update_lobby, args=[players_listbox, start_button], daemon=True)
         thread.start()
 
-        self.threads.append(thread)
-        #TODO delete the thread from the list when it finishes
-
 
     def automatic_update_lobby(self, players_listbox: tk.Listbox, start_button: ttk.Button):
-
+        """
+        Send request to the server forever to get updates about the server
+        :param players_listbox: Listbox of players
+        :param start_button: Button for start
+        :return: None
+        """
         while players_listbox.winfo_exists():
 
             try:
@@ -395,6 +419,9 @@ class TicTacToeApp:
                 server_name = response['name']
                 players = response['players']
                 board_state = response['board']
+                current_player = response['current_player']
+
+                self.is_my_turn = (players[current_player - 1] == self.name)
                 self.setup_game_page(server_name, players, board_state)
                 break
             users = response['players']
@@ -412,6 +439,13 @@ class TicTacToeApp:
             time.sleep(0.5)
 
     def setup_game_page(self, server_name, players, board_state):
+        """
+        Setup the game page
+        :param server_name: Server name
+        :param players: List of players name
+        :param board_state: Matrix of the board
+        :return:
+        """
         self.clear_frame()
 
         # Outer frame for margins
@@ -481,7 +515,7 @@ class TicTacToeApp:
         def on_quit_game():
             self.client_socket.send(ClientAPI.EXIT_SERVER.encode(FORMAT))
             response = self.client_socket.recv(1024).decode(FORMAT)
-            print(response)
+            print(json.loads(response)['message'])
             self.setup_main_page()
 
         ttk.Button(
@@ -490,23 +524,18 @@ class TicTacToeApp:
             command=on_quit_game,
         ).grid(row=3, column=0, pady=(10, 20), padx=10, sticky="ew")
 
-
         # Start the automatic update thread once
         update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
         update_thread.start()
-        # TODO We need to run the thread only when it is not your turn.
-        # TODO If it's my turn, do not create a thread.
-        # TODO If it's not your turn, create a thread.
-        # TODO If you just played, create a thread
-
-        self.threads.append(update_thread)
-        # TODO delete the thread from the list when it finishes
-
 
     def automatic_update_game(self, btn_list: list[list[tk.Button]]):
-
+        """
+        Send request to the server forever to get updates about the server
+        :param btn_list: The list of buttons of the board
+        :return: None
+        """
         # Loop forever while the first button (at least) is existing
-        while btn_list[0][0].winfo_exists():
+        while not self.is_my_turn and btn_list[0][0].winfo_exists():
 
             try:
                 self.client_socket.send((ClientAPI.GET_SERVER + '/' + self.current_server).encode(FORMAT))
@@ -529,10 +558,21 @@ class TicTacToeApp:
             time.sleep(0.5)
 
     def update_board(self, players, current_player, btn_list, updated_board, winner_tuple):
+        """
+        Update the board game
+        :param players: List of players
+        :param current_player: Symbol of the current player
+        :param btn_list: List of buttons of the board
+        :param updated_board: Matrix of the board
+        :param winner_tuple: A tuple containing the winner along with his winning cells
+        :return: None
+        """
+        # Determine if it's the player's turn
+        self.is_my_turn = (players[current_player - 1] == self.name)
 
         # Update the game page with new board and players
-        for i in range(len(players) + 1):
-            for j in range(len(players) + 1):
+        for i in range(len(btn_list)):
+            for j in range(len(btn_list)):
                 btn_list[i][j].config(text=updated_board[i][j])
                 if players[current_player - 1] == self.name:
                     btn_list[i][j]["state"] = "normal"
@@ -570,10 +610,14 @@ class TicTacToeApp:
         if all(cell != 0 for row in updated_board for cell in row):
             self.display_winner_overlay("")
             return True
-
         return False
 
     def display_winner_overlay(self, winner_name):
+        """
+        Display the winner on the window
+        :param winner_name: Name of the winner
+        :return: None
+        """
         # Determine the message and color based on the winner
         if winner_name == "":
             message = "It's a tie."
@@ -599,6 +643,13 @@ class TicTacToeApp:
         overlay_label.bind("<Button-1>", lambda e: None)
 
     def make_move(self, x, y, btn_list):
+        """
+        Function called when the player is making a move
+        :param x: x-position of the board
+        :param y: y-position of the board
+        :param btn_list: list of buttons of the board
+        :return: None
+        """
         # Send the move to the server
         move_message = f"{ClientAPI.MAKE_MOVE}/{self.current_server}/{x}/{y}"
         self.client_socket.send(move_message.encode(FORMAT))
@@ -606,7 +657,6 @@ class TicTacToeApp:
         # Receive the updated board state and player turn
         response = self.client_socket.recv(1024).decode(FORMAT)
         response_data = json.loads(response)
-        print(response)
 
         if response_data['status'] == "success":
             updated_board = response_data['board']
@@ -617,21 +667,37 @@ class TicTacToeApp:
             # Update the game page with new board and players
             self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
 
+            # If it's no longer the player's turn, restart the thread
+            if not self.is_my_turn:
+                update_thread = threading.Thread(target=self.automatic_update_game, args=[btn_list], daemon=True)
+                update_thread.start()
+
         else:
             print('failed to make move')  # Log error or invalid move
 
     def clear_frame(self):
+        """
+        Destroy all the children widgets
+        :return: None
+        """
         for widget in self.root.winfo_children():
             widget.destroy()
 
     def on_close(self):
-
+        """
+        Close socket before closing the application
+        :return:
+        """
         if self.client_socket is not None:
             self.client_socket.close()
 
         self.root.destroy()
 
 def setup_socket():
+    """
+    Setup the client socket and connect to the server
+    :return: client_socket, name, main_message
+    """
     try:
         # Set up the client socket
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

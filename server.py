@@ -82,7 +82,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_make_move(connection, player=player, server_name=msg[1], x=msg[2], y=msg[3])
 
         elif msg[0] == ClientAPI.START_GAME:
-            process_start_game(connection, address, msg)
+            process_start_game(connection, address, msg[1])
 
         elif msg[0] == ClientAPI.EXIT_SERVER:
             process_exit_server(connection, player)
@@ -104,6 +104,7 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
 
 def process_get_my_name(connection: socket.socket, address: tuple[str, int], player):
     """
+    Sends the player's assigned name back to the client.
     :param connection: socket representing the connection
     :param address: tuple (hostaddr, port)
     :param player: Player object
@@ -113,13 +114,28 @@ def process_get_my_name(connection: socket.socket, address: tuple[str, int], pla
     print(f"{address} got name: {player.name}")
 
 def process_new_server(connection: socket.socket, address: tuple[str, int], server_name, player):
+    """
+    Handles the creation of a new game server.
+    :param connection: socket representing the connection
+    :param address: tuple (hostaddr, port)
+    :param server_name: Name of the new server
+    :param player: Player object
+    :return: None
+    """
+
     # Check if the name of the new server is available
     if get_game_object(games_list, server_name) is not None:
-        connection.send("Name already exists".encode(FORMAT))
+        server_data = {"status": "failed",
+                       "msg": "Name already exists"}
+        servers_json = json.dumps(server_data)
+        connection.send(servers_json.encode(FORMAT))
 
     # Check if the name has special characters
     elif not server_name.isalnum():
-        connection.send("Please use only alpha characters".encode(FORMAT))
+        server_data = {"status": "failed",
+                       "msg": "Please use only alpha character"}
+        servers_json = json.dumps(server_data)
+        connection.send(servers_json.encode(FORMAT))
 
     # If the name is correct
     else:
@@ -129,11 +145,19 @@ def process_new_server(connection: socket.socket, address: tuple[str, int], serv
         new_server.add_player(player)
         games_list.append(new_server)
 
-        server_data = {"name": new_server.name, "players": [player.name for player in new_server.players]}
+        server_data = {"status": "success",
+                       "name": new_server.name,
+                       "players": [player.name for player in new_server.players]}
         servers_json = json.dumps(server_data)
         connection.send(servers_json.encode(FORMAT))
 
-def process_get_servers_list(connection):
+def process_get_servers_list(connection: socket.socket):
+    """
+    Sends the list of all active game servers to the client.
+    :param connection: socket representing the connection
+    :return: None
+    """
+
     # Create a list of dictionaries with the names and players
     games_data = [{"name": game.name,
                    "players": [player.name for player in game.players],
@@ -146,6 +170,12 @@ def process_get_servers_list(connection):
     connection.send(servers_json.encode(FORMAT))
 
 def process_get_server(connection: socket.socket, server_name: str):
+    """
+    Sends details about a specific game server to the client.
+    :param connection: socket representing the connection
+    :param server_name: Name of the server to retrieve
+    :return: None
+    """
 
     # Get the server corresponding to the index server 'msg'
     current_server = get_game_object(games_list, server_name)
@@ -165,7 +195,15 @@ def process_get_server(connection: socket.socket, server_name: str):
     # Sends the list of servers as JSON
     connection.send(server_json.encode(FORMAT))
 
-def process_join_server(connection: socket.socket, address: tuple[str, int], server_name, player):
+def process_join_server(connection: socket.socket, address: tuple[str, int], server_name: str, player: Player):
+    """
+    Handles a player's request to join an existing game server.
+    :param connection: socket representing the connection
+    :param address: tuple (hostaddr, port)
+    :param server_name: Name of the server to join
+    :param player: Player object
+    :return
+    """
 
     # Get the server corresponding to the index server 'msg'
     current_server = get_game_object(games_list, server_name)
@@ -192,7 +230,16 @@ def process_join_server(connection: socket.socket, address: tuple[str, int], ser
 
     connection.send(response.encode(FORMAT))
 
-def process_make_move(connection: socket.socket, player, server_name, x, y):
+def process_make_move(connection: socket.socket, player: Player, server_name: str, x: str, y: str):
+    """
+    Handles a player's move in the game.
+    :param connection: socket representing the connection
+    :param player: Player object
+    :param server_name: Name of the server
+    :param x: X-coordinate of the move
+    :param y: Y-coordinate of the move
+    :return: None
+    """
 
     # Get Game object
     current_server = get_game_object(games_list, server_name)
@@ -220,8 +267,16 @@ def process_make_move(connection: socket.socket, player, server_name, x, y):
     # Sends the list of servers as JSON
     connection.send(response_json.encode(FORMAT))
 
-def process_start_game(connection: socket.socket, address: tuple[str, int], msg):
-    current_server = get_game_object(games_list, msg[1])
+def process_start_game(connection: socket.socket, address: tuple[str, int], server_name: str):
+    """
+    Starts a game on the specified server.
+    :param connection: socket representing the connection
+    :param address: tuple (hostaddr, port)
+    :param server_name: Server name
+    :return: None
+    """
+
+    current_server = get_game_object(games_list, server_name)
     if len(current_server.players) <= 1:
         response = {"status": "error", "message": "You need more people in your server"}
         response_json = json.dumps(response)
@@ -235,6 +290,13 @@ def process_start_game(connection: socket.socket, address: tuple[str, int], msg)
         connection.send(response_json.encode(FORMAT))
 
 def process_exit_server(connection: socket.socket, player: Player):
+    """
+    Handles a player's request to leave a server.
+    :param connection: socket representing the connection
+    :param player: Player object
+    :return: None
+    """
+
     current_server = get_game_object(games_list, player.game)
     current_server.remove_player(player)
 

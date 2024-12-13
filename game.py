@@ -16,6 +16,9 @@ class Game:
         # List of players that are currently inside the game
         self.players: list[Player] = list()
 
+        # Dict of the symbols for all the players (including the ones who leaved the game)
+        self.symbols: dict = dict()
+
         # Flag if the game has started
         self.has_started: bool = False
 
@@ -31,7 +34,7 @@ class Game:
     def add_player(self, player: Player):
         """
         Add a player to the game
-        :param player: A PLayer object
+        :param player: A Player object
         :return: None
         """
         # Add the name of the server to the player game field
@@ -63,7 +66,7 @@ class Game:
         :return: None
         """
         x = len(self.players)
-        self.board = [[0 for i in range(x+1)] for j in range(x+1)]
+        self.board = [[0 for _ in range(x+1)] for _ in range(x+1)]
 
     def make_move(self, player: Player, x, y):
         """
@@ -87,6 +90,10 @@ class Game:
         return True
 
     def check_winner(self):
+        """
+        Determine if there is a winner
+        :return: A tuple containing the winner number and the winner cells
+        """
         size = len(self.board)
         win_length = 3
 
