@@ -16,8 +16,8 @@ class Game:
         # List of players that are currently inside the game
         self.players: list[Player] = list()
 
-        # Dict of the symbols for all the players (including the ones who leaved the game)
-        self.symbols: dict = dict()
+        # Maps each player to a fixed symbol
+        self.symbols: dict[Player, int] = dict()  # Maps each player to a fixed symbol
 
         # Flag if the game has started
         self.has_started: bool = False
@@ -25,8 +25,8 @@ class Game:
         # A matrix defining the game board. It is defined by lists of int.
         self.board: list[list[int]] | None = None
 
-        # Symbol of the player that must play now
-        self.current_player: int = 1
+        # Track the actual Player object
+        self.current_player: Player | None = None
 
         # A tuple containing the symbol of the winner and the winner cells coordinates
         self.winner: tuple[int, list[tuple[int, int]]] = 0, []
@@ -43,12 +43,28 @@ class Game:
         # Add the player to the list of players
         self.players.append(player)
 
+        self.symbols[player] = len(self.symbols) + 1
+        if len(self.players) == 1:
+            self.current_player = player
+
+    def _get_next_player(self, current_player: Player):
+        if not self.players:
+            return None  # No players left in the game
+
+        current_index = self.players.index(current_player)
+        next_index = (current_index + 1) % len(self.players)
+        return self.players[next_index]
+
     def remove_player(self, player):
         """
         Remove a player from the game
         :param player: A PLayer object
         :return: None
         """
+
+        if self.current_player == player:
+            self.current_player = self._get_next_player(player)
+
         player.quit_game()
         self.players.remove(player)
 
@@ -84,8 +100,10 @@ class Game:
         if self.board[x][y] != 0:
             return False
 
-        self.board[x][y] = self.current_player
-        self.current_player = self.current_player % len(self.players) + 1
+        symbol = self.symbols[player]
+        self.board[x][y] = symbol
+        self.current_player = self._get_next_player(player)
+
         self.winner = self.check_winner()
         return True
 
