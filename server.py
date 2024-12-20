@@ -2,10 +2,17 @@ import socket
 import threading
 import json
 import random
+import logging
 
 from game import Game, get_game_object
 from player import Player
 from api_client import ClientAPI
+
+logging.basicConfig(
+    level=logging.INFO,  # Set the minimum logging level
+    format="%(asctime)s - %(levelname)s - %(message)s",  # Specify the format
+    handlers=[logging.StreamHandler()]  # Use standard output
+)
 
 # Define constants
 HOST = '0.0.0.0' # localhost
@@ -47,10 +54,11 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
     :param address: tuple (hostaddr, port)
     :return: None
     """
-    print(f"New connection at {address}")
 
     # Set up the new player
     player = Player(address, get_random_animal())
+
+    logging.info(f'New connection: {player.name}')
 
     while True:
 
@@ -63,11 +71,13 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
         # Split the string according to the separator '/'
         msg = msg.split('/')
 
+        logging.info(f'Received {msg[0]} from {player.name} ')
+
         if msg[0] == ClientAPI.GET_MY_NAME:
-            process_get_my_name(connection, address, player=player)
+            process_get_my_name(connection, player=player)
 
         elif msg[0] == ClientAPI.NEW_SERVER:
-            process_new_server(connection, address, server_name=msg[1], player=player)
+            process_new_server(connection, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.GET_SERVERS_LIST:
             process_get_servers_list(connection)
@@ -76,13 +86,13 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
             process_get_server(connection, server_name=msg[1])
 
         elif msg[0] == ClientAPI.JOIN_SERVER:
-            process_join_server(connection, address, server_name=msg[1], player=player)
+            process_join_server(connection, server_name=msg[1], player=player)
 
         elif msg[0] == ClientAPI.MAKE_MOVE:
             process_make_move(connection, player=player, server_name=msg[1], x=msg[2], y=msg[3])
 
         elif msg[0] == ClientAPI.START_GAME:
-            process_start_game(connection, address, msg[1])
+            process_start_game(connection,  player, msg[1])
 
         elif msg[0] == ClientAPI.EXIT_SERVER:
             process_exit_server(connection, player)
@@ -102,22 +112,19 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
     # Free the name player from the picked names
     picked_names.remove(player.name)
 
-def process_get_my_name(connection: socket.socket, address: tuple[str, int], player):
+def process_get_my_name(connection: socket.socket, player):
     """
     Sends the player's assigned name back to the client.
     :param connection: socket representing the connection
-    :param address: tuple (hostaddr, port)
     :param player: Player object
     :return: None
     """
     connection.send(player.name.encode(FORMAT))
-    print(f"{address} got name: {player.name}")
 
-def process_new_server(connection: socket.socket, address: tuple[str, int], server_name, player):
+def process_new_server(connection: socket.socket, server_name, player):
     """
     Handles the creation of a new game server.
     :param connection: socket representing the connection
-    :param address: tuple (hostaddr, port)
     :param server_name: Name of the new server
     :param player: Player object
     :return: None
@@ -139,7 +146,7 @@ def process_new_server(connection: socket.socket, address: tuple[str, int], serv
 
     # If the name is correct
     else:
-        print(f"{address} created server {server_name}")
+        logging.info(f'{player.name} created server {server_name}')
 
         new_server = Game(server_name)
         new_server.add_player(player)
@@ -185,7 +192,7 @@ def process_get_server(connection: socket.socket, server_name: str):
                 "name": current_server.name,
                 "board": current_server.board,
                 "has_started": current_server.has_started,
-                "current_player": current_server.current_player,
+                "current_player": current_server.current_player.name,
                 "players": [player.name for player in current_server.players],
                 "winner": current_server.winner}
 
@@ -195,11 +202,10 @@ def process_get_server(connection: socket.socket, server_name: str):
     # Sends the list of servers as JSON
     connection.send(server_json.encode(FORMAT))
 
-def process_join_server(connection: socket.socket, address: tuple[str, int], server_name: str, player: Player):
+def process_join_server(connection: socket.socket, server_name: str, player: Player):
     """
     Handles a player's request to join an existing game server.
     :param connection: socket representing the connection
-    :param address: tuple (hostaddr, port)
     :param server_name: Name of the server to join
     :param player: Player object
     :return
@@ -219,8 +225,7 @@ def process_join_server(connection: socket.socket, address: tuple[str, int], ser
 
         # Add the player to the list of players of the server
         current_server.add_player(player)
-
-        print(f"{address} joined server: {current_server.name}")
+        logging.info(f'{player.name} joined server {current_server.name}')
         response_data = {"status": "success",
                          "name": current_server.name,
                          "players": [player.name for player in current_server.players]}
@@ -257,7 +262,7 @@ def process_make_move(connection: socket.socket, player: Player, server_name: st
                 "name": current_server.name,
                 "board": current_server.board,
                 "has_started": current_server.has_started,
-                "current_player": current_server.current_player,
+                "current_player": current_server.current_player.name,
                 "players": [player.name for player in current_server.players],
                 "winner": current_server.winner}
 
@@ -267,11 +272,11 @@ def process_make_move(connection: socket.socket, player: Player, server_name: st
     # Sends the list of servers as JSON
     connection.send(response_json.encode(FORMAT))
 
-def process_start_game(connection: socket.socket, address: tuple[str, int], server_name: str):
+def process_start_game(connection: socket.socket, player: Player, server_name: str):
     """
     Starts a game on the specified server.
     :param connection: socket representing the connection
-    :param address: tuple (hostaddr, port)
+    :param player: Player object
     :param server_name: Server name
     :return: None
     """
@@ -283,7 +288,7 @@ def process_start_game(connection: socket.socket, address: tuple[str, int], serv
         connection.send(response_json.encode(FORMAT))
     else:
         current_server.start()
-        print(f"{address} started server: {current_server.name}")
+        logging.info(f'{player.name} started game {current_server.name}')
 
         response = {"status": "success", "message": f"You started the server {current_server.name}"}
         response_json = json.dumps(response)
@@ -316,13 +321,12 @@ def main():
     # Bind the socket to address
     server_socket.bind(ADDR)
 
+    logging.info(f'Server started')
+
     # Listen to new clients
     server_socket.listen()
 
     while True:
-        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}\n")  # printing the amount of threads working
-
-        print("Waiting for a client to connect...")
         connection, address = server_socket.accept()  # Waiting for client to connect to server (blocking call)
 
         thread = threading.Thread(target=handle_client, args=(connection, address))
