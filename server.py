@@ -32,7 +32,7 @@ animal_names = [
 # Set to track picked names
 picked_names = set()
 
-def get_random_animal():
+def get_random_animal() -> str:
     """
     Selects a random animal name that hasn't been picked yet
     :return: String of a random animal
@@ -43,7 +43,7 @@ def get_random_animal():
 
     # Get a random name that hasn't been picked yet
     remaining_names = set(animal_names) - picked_names
-    chosen_name = random.choice(list(remaining_names))
+    chosen_name: str = random.choice(list(remaining_names))
     picked_names.add(chosen_name)
     return chosen_name
 
@@ -56,7 +56,11 @@ def handle_client(connection: socket.socket, address: tuple[str, int]):
     """
 
     # Set up the new player
-    player = Player(address, get_random_animal())
+    try:
+        player = Player(address, get_random_animal())
+    except ValueError as error:
+        logging.error(error)
+        return
 
     logging.info(f'New connection: {player.name}')
 

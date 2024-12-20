@@ -108,14 +108,17 @@ class TicTacToeApp:
         ttk.Label(self.main_frame, text=f"Your name: {self.name}", font=("Arial", 12, "bold")).grid(row=1, column=0, pady=5, sticky="n")
 
         # Buttons
-        ttk.Button(self.main_frame, text="New server", command=self.setup_new_server_page).grid(row=2, column=0,
-                                                                                                pady=10, padx=10,
-                                                                                                sticky="ew")
-        ttk.Button(self.main_frame, text="Join server", command=self.setup_join_server_page).grid(row=3, column=0,
-                                                                                                  pady=10, padx=10,
-                                                                                                  sticky="ew")
-        ttk.Button(self.main_frame, text="Quit game", command=self.root.quit).grid(row=4, column=0, pady=10, padx=10,
-                                                                                   sticky="ew")
+        self.btn_new = ttk.Button(self.main_frame, text="New server", command=self.setup_new_server_page)
+        self.btn_join = ttk.Button(self.main_frame, text="Join server", command=self.setup_join_server_page)
+        self.btn_quit = ttk.Button(self.main_frame, text="Quit game", command=self.root.quit).grid
+
+        self.btn_new.grid(row=2, column=0, pady=10, padx=10, sticky="ew")
+        self.btn_join.grid(row=3, column=0, pady=10, padx=10, sticky="ew")
+        self.btn_quit(row=4, column=0, pady=10, padx=10, sticky="ew")
+
+        if self.client_socket is None:
+            self.btn_new['state'] = "disabled"
+            self.btn_join['state'] = "disabled"
 
         # Server Status Label
         server_status_label = ttk.Label(
@@ -547,22 +550,20 @@ class TicTacToeApp:
             response = json.loads(msg)
 
             updated_board = response['board']
-            players = response['players']
             current_player = response['current_player']
             winner_tuple = response['winner']
 
             print("Update board")
-            end_game = self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
+            end_game = self.update_board(current_player, btn_list, updated_board, winner_tuple)
 
             if end_game:
                 break
 
             time.sleep(0.5)
 
-    def update_board(self, players, current_player, btn_list, updated_board, winner_tuple):
+    def update_board(self, current_player, btn_list, updated_board, winner_tuple):
         """
         Update the board game
-        :param players: List of players
         :param current_player: Symbol of the current player
         :param btn_list: List of buttons of the board
         :param updated_board: Matrix of the board
@@ -586,11 +587,11 @@ class TicTacToeApp:
 
         # If there is a winner
         if winner_tuple[0] != 0:
-            winner: tuple[int, list[tuple[int, int]]] = winner_tuple
+            winner: tuple[str, list[tuple[int, int]]] = winner_tuple
 
             for (x, y) in winner[1]:
 
-                if self.name == players[winner[0] - 1]:
+                if self.name == winner[0]:
                     color_cells = 'green'
                 else:
                     color_cells = 'red'
@@ -604,7 +605,7 @@ class TicTacToeApp:
                 btn_list[x][y].config(style='W.TButton')
 
                 # Display winning message overlay
-                self.display_winner_overlay(players[winner[0] - 1])
+                self.display_winner_overlay(winner[0])
 
             return True
 
@@ -662,12 +663,11 @@ class TicTacToeApp:
 
         if response_data['status'] == "success":
             updated_board = response_data['board']
-            players = response_data['players']
             current_player = response_data['current_player']
             winner_tuple = response_data['winner']
 
             # Update the game page with new board and players
-            self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
+            self.update_board(current_player, btn_list, updated_board, winner_tuple)
 
             # If it's no longer the player's turn, restart the thread
             if not self.is_my_turn:

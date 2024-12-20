@@ -107,7 +107,7 @@ class Game:
         self.winner = self.check_winner()
         return True
 
-    def check_winner(self):
+    def check_winner(self) -> tuple[str, list[tuple[int, int]]]:
         """
         Determine if there is a winner
         :return: A tuple containing the winner number and the winner cells
@@ -126,28 +126,32 @@ class Game:
             for col in range(size - win_length + 1):
                 winner = check_line(self.board[row][col:col + win_length])
                 if winner:
-                    return winner, [(row, col + i) for i in range(win_length)]
+                    winner_player: Player = next((k for k, v in self.symbols.items() if v == winner), None)
+                    return winner_player.name, [(row, col + i) for i in range(win_length)]
 
         # Check columns
         for col in range(size):
             for row in range(size - win_length + 1):
                 winner = check_line([self.board[row + i][col] for i in range(win_length)])
                 if winner:
-                    return winner, [(row + i, col) for i in range(win_length)]
+                    winner_player: Player = next((k for k, v in self.symbols.items() if v == winner), None)
+                    return winner_player.name, [(row + i, col) for i in range(win_length)]
 
         # Check diagonals (top-left to bottom-right)
         for row in range(size - win_length + 1):
             for col in range(size - win_length + 1):
                 winner = check_line([self.board[row + i][col + i] for i in range(win_length)])
                 if winner:
-                    return winner, [(row + i, col + i) for i in range(win_length)]
+                    winner_player: Player = next((k for k, v in self.symbols.items() if v == winner), None)
+                    return winner_player.name, [(row + i, col + i) for i in range(win_length)]
 
         # Check diagonals (top-right to bottom-left)
         for row in range(size - win_length + 1):
             for col in range(win_length - 1, size):
                 winner = check_line([self.board[row + i][col - i] for i in range(win_length)])
                 if winner:
-                    return winner, [(row + i, col - i) for i in range(win_length)]
+                    winner_player: Player = next((k for k, v in self.symbols.items() if v == winner), None)
+                    return winner_player.name, [(row + i, col - i) for i in range(win_length)]
 
         return 0, []  # No winner
 
