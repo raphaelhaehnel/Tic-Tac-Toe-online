@@ -421,7 +421,7 @@ class TicTacToeApp:
                 board_state = response['board']
                 current_player = response['current_player']
 
-                self.is_my_turn = (players[current_player - 1] == self.name)
+                self.is_my_turn = current_player == self.name
                 self.setup_game_page(server_name, players, board_state)
                 break
             users = response['players']
@@ -507,7 +507,7 @@ class TicTacToeApp:
             ttk.Label(
                 players_frame,
                 text=f"{player}: {symbol}",
-                font=("Arial", 12),
+                font=("Arial", 12, "bold") if player == self.name else ("Arial", 12),
                 anchor="w",
             ).pack(anchor="w", pady=5)
 
@@ -537,6 +537,7 @@ class TicTacToeApp:
         # Loop forever while the first button (at least) is existing
         while not self.is_my_turn and btn_list[0][0].winfo_exists():
 
+
             try:
                 self.client_socket.send((ClientAPI.GET_SERVER + '/' + self.current_server).encode(FORMAT))
                 msg = self.client_socket.recv(1024).decode(FORMAT)
@@ -550,6 +551,7 @@ class TicTacToeApp:
             current_player = response['current_player']
             winner_tuple = response['winner']
 
+            print("Update board")
             end_game = self.update_board(players, current_player, btn_list, updated_board, winner_tuple)
 
             if end_game:
@@ -568,13 +570,13 @@ class TicTacToeApp:
         :return: None
         """
         # Determine if it's the player's turn
-        self.is_my_turn = (players[current_player - 1] == self.name)
+        self.is_my_turn = current_player == self.name
 
         # Update the game page with new board and players
         for i in range(len(btn_list)):
             for j in range(len(btn_list)):
                 btn_list[i][j].config(text=updated_board[i][j])
-                if players[current_player - 1] == self.name:
+                if self.is_my_turn:
                     btn_list[i][j]["state"] = "normal"
                 else:
                     btn_list[i][j]["state"] = "disabled"

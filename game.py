@@ -93,7 +93,7 @@ class Game:
         :return: True if the operation succeed, false otherwise
         """
         # If it's not your turn
-        if self.players.index(player) + 1 != self.current_player:
+        if player != self.current_player:
             return False
 
         # If the cell is already taken
