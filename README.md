@@ -2,6 +2,7 @@
 
 Final exercise for the course Computer network and Internet, Bar-Ilan University
 
+![Picture1](https://github.com/user-attachments/assets/a16208b3-3c88-4ed4-88b4-2953d262d2ff)
 
 ## Usage
 1. Run the server `server.py`.
