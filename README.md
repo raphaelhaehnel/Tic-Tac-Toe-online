@@ -7,7 +7,7 @@ Final exercise for the course Computer network and Internet, Bar-Ilan University
 ## Usage
 1. Run the server `server.py`.
 2. Configure the file `config.json` and update the IP of the server (if the clients and the server are on the same computer, write localhost).
-3. Run the client `client.py` (you can run multiple clients on multiple computer).
+3. Run the client `client.py` (you can run multiple clients on multiple computers).
 
 
 ## Environment
